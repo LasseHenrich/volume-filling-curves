@@ -1,0 +1,4 @@
+curve curve.txt
+radius 0.3
+h 0.02
+
