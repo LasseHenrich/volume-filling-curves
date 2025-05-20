@@ -44,4 +44,6 @@ namespace modules {
 		const double maxRadius,
 		const VolumeFillingEnergy::Options& options = {}
 	);
+
+	Vector3 arbitrary_normal(const Vector3& t);
 }

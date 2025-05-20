@@ -48,33 +48,30 @@ namespace modules {
 		std::vector<Vector3> segmentNormal(segments.size());
 		std::vector<Vector3> segmentBitangent(segments.size());
 		
-		// 1. Compute tangents (verified CORRECT with HARDCODED normal)
+		// 1. Compute tangents (HARDCODED normal)
 		for (size_t i = 0; i < segments.size(); i++) {
 			int j = segments[i][0];
 			int k = segments[i][1];
 
 			Vector3 t = normalize(nodes[k] - nodes[j]);
-
-			/*
+			Vector3 b;
 			Vector3 n;
-			if (std::abs(t.z) > 0.707) {
-				// if tangent is more along z-axis, use x-axis for the cross product
-				n = normalize(cross(Vector3{ 1, 0, 0 }, t));
+
+			if (i > 0) {
+				Vector3 t_prev = segmentTangents[i-1];
+				Vector3 curvature = normalize(t - t_prev);
+				n = curvature;
+				if (norm(t - t_prev) < 1e-5) { // curvature=NaN iff t=t_prev
+					n = arbitrary_normal(t);
+				}
+				b = normalize(cross(t, n));
+				n = normalize(cross(b, t));
 			}
 			else {
-				// otherwise, use z-axis for the cross product
-				n = normalize(cross(Vector3{ 0, 0, 1 }, t));
+				n = arbitrary_normal(t);
+				b = normalize(cross(t, n));
+				n = normalize(cross(b, t));
 			}
-
-			// ensure normal is perpendicular to tangent
-			n = normalize(n - dot(n, t) * t);
-
-			// note that with this, we sometimes have a sign flip
-			// in comparison to surface-filling-curves...
-			*/
-			Vector3 n = Vector3{ 0, 1, 0 }; // DEBUG for 2D case. ToDo
-
-			Vector3 b = cross(n, t);
 
 			segmentTangents[i] = t;
 			segmentNormal[i] = n;
@@ -91,7 +88,7 @@ namespace modules {
 		//std::cout << "field alignedness: " << options.w_fieldAlignedness << ", curvature alignedness: " << options.w_curvatureAlignedness << ", bilaplacian weight: " << options.w_bilaplacian << std::endl;
 		// no support for these at the moment, all zero
 
-		// 2. Dirichlet term (verified CORRECT)
+		// 2. Dirichlet term
 		func.add_elements<2>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
 			using T = TINYAD_SCALAR_TYPE(element);
 			int segmentId = element.handle;
@@ -125,9 +122,6 @@ namespace modules {
 			T dy = abs(p0(1) - p1(1));
 			T dz = abs(p0(2) - p1(2));
 
-			// crs0 & crs1 as well as dot0 & dot1 are zero
-			// without field-aligned and curvature energies
-
 			auto result = (
 				pow(pow(dx, 2) + pow(dy, 2) + pow(dz, 2), p / 2)
 				) / (edgeLen * totalCurveLength);
@@ -140,7 +134,7 @@ namespace modules {
 		// 3. Medial axis term
 		auto tetTopologyEnd = std::chrono::high_resolution_clock::now();
 
-		// 3.1 Node-based tangents (verified CORRECT)
+		// 3.1 Node-based tangents
 		std::vector<Vector3> nodeTangents(nodes.size());
 		std::vector<Vector3> nodeNormals(nodes.size());
 		std::vector<Vector3> nodeBitangents(nodes.size());
@@ -179,7 +173,7 @@ namespace modules {
 
 		auto tangentEvalEnd = std::chrono::high_resolution_clock::now();
 
-		// 3.2 Medial axis (verified CORRECT)
+		// 3.2 Medial axis
 		auto nodeMedialAxis = modules::medial_axis(
 			nodes,
 			segments,
@@ -240,12 +234,6 @@ namespace modules {
 
 		auto end = std::chrono::high_resolution_clock::now();
 
-		// verified CORRECT until here
-
-		/*
-		Log time recordings...
-		*/
-
 		return std::make_tuple(
 			descent,
 			gradient,
@@ -253,204 +241,6 @@ namespace modules {
 			nodeMedialAxis
 		);
 	}
-
-	/*
-	std::tuple<
-		std::vector<Vector3>, // descent direction
-		std::vector<Vector3>, // gradient direction
-		double, // energy
-		std::vector<std::vector<Vector3>> // medial axis
-	> volume_filling_energy(
-		const std::vector<Vector3>& nodes,
-		const std::vector<std::array<int, 2>>& segments,
-		const std::vector<double>& segmentLengths,
-		const double radius,
-		const double maxRadius,
-		const VolumeFillingEnergy::Options& options
-	) {
-		auto start = std::chrono::high_resolution_clock::now();
-
-		double p = options.p;
-		double q = options.q;
-		double branchRadius = radius * branchRatio;
-		double alpha = 4.0 / (branchRadius * branchRadius);
-
-		std::cout << "alpha: " << alpha << ", p: " << p << ", q: " << q << std::endl;
-
-		std::vector<Vector3> descent(nodes.size(), Vector3());
-		std::vector<Vector3> gradient(nodes.size(), Vector3());
-
-		double energy = 0.0;
-		double totalCurveLength = 0.0;
-
-		for (int i = 0; i < segments.size(); i++) {
-			totalCurveLength += segmentLengths[i];
-		}
-
-		std::vector<Vector3> nodeTangents(nodes.size());
-		std::vector<Vector3> nodeNormals(nodes.size());
-		std::vector<Vector3> nodeBitangents(nodes.size());
-		std::vector<double> nodeWeights(nodes.size());
-
-		// 1. Compute tangents
-		for (size_t i = 0; i < segments.size(); i++) {
-			int j = segments[i][0];
-			int k = segments[i][1];
-
-			Vector3 segment = nodes[k] - nodes[j];
-			double length = norm(segment);
-
-			if (length < 1e-10) {
-				continue;
-			}
-
-			Vector3 tangent = segment / length;
-			nodeTangents[j] += tangent;
-			nodeTangents[k] += tangent;
-			nodeWeights[j] += length * 0.5;
-			nodeWeights[k] += length * 0.5;
-		}
-
-		// 2. Normalize tangents
-		for (size_t i = 0; i < nodes.size(); i++) {
-			if (nodeWeights[i] > 1e-10) {
-				nodeTangents[i] = normalize(nodeTangents[i]);
-			}
-		}
-
-		// 3. Compute consistent normals and bitangents
-		for (size_t i = 0; i < nodes.size(); i++) {
-			Vector3 tangent = nodeTangents[i];
-
-			if (norm(tangent) < 1e-10) {
-				continue;
-			}
-
-			if (std::abs(tangent.z) > 0.707) {
-				// if tangent is more along z-axis, use x-axis for the cross product
-				nodeNormals[i] = normalize(cross(Vector3{ 1, 0, 0 }, tangent));
-			}
-			else {
-				// otherwise, use z-axis for the cross product
-				nodeNormals[i] = normalize(cross(Vector3{ 0, 0, 1 }, tangent));
-			}
-
-			nodeBitangents[i] = normalize(cross(tangent, nodeNormals[i]));
-			nodeNormals[i] = normalize(nodeNormals[i] - dot(nodeNormals[i], tangent) * tangent);
-		}
-
-		// 4. Compute medial axis
-		std::vector<std::vector<Vector3>> nodeMedialAxis =
-			medial_axis(nodes, segments, nodeTangents, nodeNormals, nodeBitangents, maxRadius);
-
-		// 5. Caculate energy terms and gradients for each segment (dirichlet, field, curvature, bilaplacian)
-		for (size_t i = 0; i < segments.size(); i++) {
-			int j = segments[i][0];
-			int k = segments[i][1];
-
-			Vector3 segment = nodes[k] - nodes[j];
-			double currentLength = norm(segment);
-
-			if (currentLength < 1e-6) {
-				continue;
-			}
-
-			Vector3 tangent = segment / currentLength;
-
-			Vector3 normal;
-			if (std::abs(tangent.z) > 0.707) {
-				// if tangent is more along z-axis, use x-axis for the cross product
-				normal = normalize(cross(Vector3{ 1, 0, 0 }, tangent));
-			}
-			else {
-				// otherwise, use z-axis for the cross product
-				normal = normalize(cross(Vector3{ 0, 0, 1 }, tangent));
-			}
-
-			// ensure normal is perpendicular to tangent
-			normal = normalize(normal - dot(normal, tangent) * tangent);
-
-			Vector3 bitangent = cross(tangent, normal);
-
-			double lengthRatio = currentLength / segmentLengths[i];
-
-			// energy terms contribution
-			double dirichletTerm = 0;// pow(lengthRatio - 1.0, p); // modified to penalize deviation from rest length
-			double fieldAlignedness = 0;// pow(dot(tangent, normal), q);
-			double curvatureAlignedness = 0;//pow(dot(tangent, bitangent), q);
-			double bilaplacianTerm = pow(lengthRatio, p) * pow(norm(bitangent), q);
-
-			// accumulate energy
-			energy += dirichletTerm + fieldAlignedness + curvatureAlignedness + bilaplacianTerm;
-
-			// compute gradient (note: gradient points in the direction of energy increase)
-			Vector3 dirichletGrad = Vector3(); alpha* p* pow(lengthRatio - 1.0, p - 1)* (1.0 / segmentLengths[i])* tangent;
-			Vector3 fieldAlignednessGrad = Vector3();// alpha* q* pow(dot(tangent, normal), q - 1)* normal;
-			Vector3 curvatureAlignednessGrad = Vector3();// alpha* q* pow(dot(tangent, bitangent), q - 1)* bitangent;
-			Vector3 bilaplacianGrad = alpha * (
-				p * pow(lengthRatio, p - 1) * (1.0 / segmentLengths[i]) * pow(bitangent.norm(), q) * tangent +
-				q * pow(lengthRatio, p) * pow(bitangent.norm(), q - 1) * normalize(bitangent)
-			);
-
-			// apply gradients to nodes
-			gradient[j] += dirichletGrad + fieldAlignednessGrad + curvatureAlignednessGrad + bilaplacianGrad;
-			gradient[k] -= dirichletGrad + fieldAlignednessGrad + curvatureAlignednessGrad + bilaplacianGrad;
-		}
-
-		// 6. Add medial axis energy term
-		for (size_t i = 0; i < nodes.size(); i++) {
-			if (nodeMedialAxis[i].size() != 2) {
-				continue;
-			}
-
-			Vector3 c_0 = nodeMedialAxis[i][0];
-			Vector3 c_1 = nodeMedialAxis[i][1];
-
-			double l_0 = norm(nodes[i] - c_0);
-			double l_1 = norm(nodes[i] - c_1);
-
-			double medialAxisEnergy = pow(pow(l_0, 2) + pow(l_1, 2), q * 0.5);
-			energy += alpha * nodeWeights[i] * medialAxisEnergy / totalCurveLength;
-
-			Vector3 gradL0 = (nodes[i] - c_0) / (l_0 > 1e-10 ? l_0 : 1e-10);
-			Vector3 gradL1 = (nodes[i] - c_1) / (l_1 > 1e-10 ? l_1 : 1e-10);
-
-			Vector3 medialAxisGrad = alpha * nodeWeights[i] * q *
-				pow(pow(l_0, 2) + pow(l_1, 2), q * 0.5 - 1) *
-				(l_0 * gradL0 + l_1 * gradL1) /
-				totalCurveLength;
-
-			gradient[i] += medialAxisGrad;
-		}
-
-		// 7. Compute descent direction (negative gradient, normalized and scaled)
-		double maxGradNorm = 0.0;
-		for (size_t i = 0; i < nodes.size(); i++) {
-			double gradNorm = gradient[i].norm();
-			if (gradNorm > maxGradNorm) {
-				maxGradNorm = gradNorm;
-			}
-		}
-
-		// 8. Normalize descent direction to have a reasonable step size
-		double scaleFactor = (maxGradNorm > 1e-10) ? options.stepSizeFactor / maxGradNorm : 0.0;
-		for (size_t i = 0; i < nodes.size(); i++) {
-			descent[i] = scaleFactor * gradient[i];
-		}
-
-		auto end = std::chrono::high_resolution_clock::now();
-		std::cout << "Energy calculation time: "
-			<< std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
-			<< "ms, Energy: " << energy << std::endl;
-
-		return std::make_tuple(
-			descent,
-			gradient,
-			energy,
-			nodeMedialAxis
-		);
-	}
-	*/
 
 	std::tuple<
 		std::vector<Vector3>, // descent direction
@@ -567,5 +357,11 @@ namespace modules {
 			energy,
 			std::vector<std::vector<Vector3>>{}
 		);
+	}
+
+	Vector3 arbitrary_normal(const Vector3& t) {
+		if (std::abs(t.x) <= std::abs(t.y) && std::abs(t.x) <= std::abs(t.z)) return normalize(cross(t, Vector3{ 1,0,0 }));
+		if (std::abs(t.y) <= std::abs(t.z)) return normalize(cross(t, Vector3{ 0,1,0 }));
+		return normalize(cross(t, Vector3{ 0,0,1 }));
 	}
 }

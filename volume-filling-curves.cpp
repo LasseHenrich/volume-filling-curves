@@ -159,6 +159,19 @@ int main(int argc, char **argv) {
 
     if (scene.curveFileName != "") {
         std::tie(nodes, segments) = modules::read_nodes(scene.curveFileName);
+
+        /*
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<float> noiseDist(-0.1f, 0.1f);
+
+        // add noise to nodes
+        for (int i = 0; i < nodes.size(); i++) {
+            nodes[i].x += noiseDist(gen);
+            nodes[i].y += noiseDist(gen);
+            nodes[i].z += noiseDist(gen);
+        }
+        */
     }
 
     if (nodes.size() == 0) {
