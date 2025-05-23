@@ -107,7 +107,7 @@ namespace modules {
 			double edgeLen = segmentLengths[i];
 
 			if (edgeLen > 2 * h) {
-				int divisionCount = std::ceil(edgeLen / h);
+				int divisionCount = std::ceil(edgeLen / (2 * h));
 				double lenPerDivision = edgeLen / divisionCount;
 
 				// add the new nodes
