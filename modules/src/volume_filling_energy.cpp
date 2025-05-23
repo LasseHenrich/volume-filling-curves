@@ -57,20 +57,26 @@ namespace modules {
 			Vector3 b;
 			Vector3 n;
 
-			if (i > 0) {
-				Vector3 t_prev = segmentTangents[i-1];
-				Vector3 curvature = normalize(t - t_prev);
-				n = curvature;
-				if (norm(t - t_prev) < 1e-5) { // curvature=NaN iff t=t_prev
-					n = arbitrary_normal(t);
+			if (true) {
+				if (i > 0) {
+					Vector3 t_prev = segmentTangents[i - 1];
+					Vector3 curvature = normalize(t - t_prev);
+					n = curvature;
+					if (norm(t - t_prev) < 1e-5) { // curvature=NaN iff t=t_prev
+						n = arbitrary_normal(t);
+					}
+					b = normalize(cross(t, n));
+					n = normalize(cross(b, t));
 				}
-				b = normalize(cross(t, n));
-				n = normalize(cross(b, t));
+				else {
+					n = arbitrary_normal(t);
+					b = normalize(cross(t, n));
+					n = normalize(cross(b, t));
+				}
 			}
 			else {
-				n = arbitrary_normal(t);
-				b = normalize(cross(t, n));
-				n = normalize(cross(b, t));
+				n = Vector3{ 0, 1, 0 }; // DEBUG for 2D case. ToDo
+				b = cross(n, t);
 			}
 
 			segmentTangents[i] = t;
