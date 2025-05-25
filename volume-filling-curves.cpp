@@ -14,12 +14,7 @@
 
 using namespace modules;
 
-float radius = 30;
-float timestep = 1;
-float h = igl::PI * radius / 25;
-float rmax = 0.5;
-
-modules::SceneObject scene;
+scene_file::SceneObject scene;
 
 std::vector<Vector3> nodes = {}, restNodes = {}, initialNodes = {};
 std::vector<std::array<int, 2>> segments = {}, restSegments = {}, initialSegments = {};
@@ -71,21 +66,12 @@ void doWork() {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // 0. initialize options object
-    modules::VolumeFillingEnergy::Options options;  
-    options.p = scene.p;
-    options.q = scene.q;
-    options.w_bilaplacian = scene.w_bilaplacian;
-	// ToDo: Assign rest of options from scene file
-
     // 1. compute descent direction
 	auto [descent, gradient, energy, medialAxis] = modules::volume_filling_energy(
 		nodes,
 		segments,
 		segmentLengths,
-		radius,
-		rmax,
-		options
+		scene
 	);
 
     // 2. evolve curve without self-intersections
@@ -93,7 +79,7 @@ void doWork() {
 		nodes,
 		segments,
 		segmentLengths,
-        h,
+        scene.h,
         descent
 	);
 	
@@ -150,10 +136,9 @@ int main(int argc, char **argv) {
     polyscope::state::userCallback = polyscopeCallback;
     scene = modules::read_scene(args::get(inputFilename));
 
-    radius = scene.radius;
-    h = scene.h;
-    timestep = scene.timestep;
-    rmax = scene.rmax == 0 ? radius * 10 : scene.rmax;
+    if (scene.rmax == 0) {
+        scene.rmax = scene.radius * 10;
+    }
 
     // ToDo: Use specified volume
 

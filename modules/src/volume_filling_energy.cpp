@@ -21,12 +21,12 @@ namespace modules {
 		const std::vector<Vector3>& nodes,
 		const std::vector<std::array<int, 2>>& segments,
 		const std::vector<double>& segmentLengths,
-		const double radius,
-		const double maxRadius,
-		const VolumeFillingEnergy::Options& options
+		const scene_file::SceneObject& options
 	) {
 		auto start = std::chrono::high_resolution_clock::now();
 
+		double radius = options.radius;
+		double maxRadius = options.rmax;
 		double p = options.p;
 		double q = options.q;
 		double branchRadius = radius * branchRatio;
@@ -259,7 +259,7 @@ namespace modules {
 		const std::vector<double>& segmentLengths,
 		const double radius,
 		const double maxRadius,
-		const VolumeFillingEnergy::Options& options
+		const scene_file::SceneObject& options
 	) {
 
 		auto start = std::chrono::high_resolution_clock::now();

@@ -105,9 +105,6 @@ namespace modules {
 
 			nodeMedialAxis[i].emplace_back(nodes[i] - r_min_minus * b);
 			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus * b);
-
-			// Comment from Claude: in 3D space, the medial axis can be represented as two points
-			// equidistant from the node in opposite directions along the plane
 		}
 
 		return nodeMedialAxis;

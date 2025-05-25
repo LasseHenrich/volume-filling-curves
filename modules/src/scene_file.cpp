@@ -29,7 +29,7 @@ namespace modules {
         return path;
     }
 
-    void processLine(SceneObject& scene, std::string directory, std::vector<std::string>& parts) {
+    void processLine(scene_file::SceneObject& scene, std::string directory, std::vector<std::string>& parts) {
         string key = parts[0];
 
         if (key == "#" || key == "//") {
@@ -79,7 +79,7 @@ namespace modules {
         }
     }
 
-    SceneObject read_scene(std::string filename) {
+    scene_file::SceneObject read_scene(std::string filename) {
         string directory = getDirectoryFromPath(filename);
 
         ifstream inFile;
@@ -90,7 +90,7 @@ namespace modules {
             exit(1);
         }
 
-        SceneObject scene;
+        scene_file::SceneObject scene;
 
         std::vector<std::string> parts;
         for (std::string line; std::getline(inFile, line); ) {
