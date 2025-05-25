@@ -215,6 +215,34 @@ namespace modules {
 
 		auto repulsiveEnd = std::chrono::high_resolution_clock::now();
 
+		// 4. Box constraint term (add this after the medial axis term)
+		func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
+			using T = TINYAD_SCALAR_TYPE(element);
+			int nodeId = element.handle;
+
+			Eigen::Vector3<T> pos = element.variables(nodeId);
+
+			// Box half-extents (adjust these to your desired box size)
+			Eigen::Vector3d boxExtents(1.2, 1.2, 1.2); // Example: 2x2x2 box centered at origin
+
+			// Signed distance to box
+			Eigen::Vector3<T> q = pos.cwiseAbs() - boxExtents;
+			T exterior_dist = (q.cwiseMax(0.0)).norm();
+			T interior_dist = fmin(fmax(q(0), fmax(q(1), q(2))), T(0.0));
+			T sdf = exterior_dist + interior_dist;
+			
+			// Barrier function: penalize points outside the box
+			T barrier_weight = 1000.0; // Adjust this to control constraint strength
+			T penalty = 0.0;
+
+			if (sdf > 0.0) { // Outside the box
+				penalty = barrier_weight * pow(sdf, 2); // Quadratic penalty
+			}
+
+			return penalty / totalCurveLength;
+		});
+
+
 		auto x = func.x_from_data([&](int v_idx) {
 			auto v = nodes[v_idx];
 			return Eigen::Vector3d(v.x, v.y, v.z);
