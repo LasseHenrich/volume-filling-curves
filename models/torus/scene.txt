@@ -1,0 +1,6 @@
+volume primitive torus 1.2 0.6
+radius 0.1
+rmax 0.3
+h 0.015
+
+

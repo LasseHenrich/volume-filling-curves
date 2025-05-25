@@ -12,6 +12,27 @@ using namespace geometrycentral;
 
 namespace modules {
     namespace scene_file {
+		enum VolumeType {
+			PRIMITIVE, // Primitive surface (e.g., sphere, box)
+			SDF, // Signed distance field surface
+			MESH // Mesh surface
+		};
+
+        enum PrimitiveType {
+            SPHERE,
+            BOX,
+            ROUNDBOX,
+            TORUS
+        };
+
+        struct SceneObject_Volume {
+			VolumeType volumeType = PRIMITIVE; // Default to primitive surface
+
+            PrimitiveType primitiveType = SPHERE; // Default to sphere
+            std::vector<double> primitive_params = {}; // Parameters for the primitive (e.g., radius for sphere, extents for box)
+            // ToDo: Add params documentation here
+        };
+
         // We may not need all of these props,
         // but they all have a default value assigned,
         // so they don't bother at the moment.
@@ -19,11 +40,14 @@ namespace modules {
         struct SceneObject {
             std::string curveFileName = "";
             double radius = 0.1;
-            double timestep = 1.;
+            double rmax = radius * 5;
             double h = igl::PI * radius / 20;
             double p = 2;
             double q = 2;
-            double rmax = radius * 5;
+
+			SceneObject_Volume volume;
+
+            double timestep = 1.;
             double w_fieldAlignedness = 0;
             double w_curvatureAlignedness = 0;
             double w_bilaplacian = 0;

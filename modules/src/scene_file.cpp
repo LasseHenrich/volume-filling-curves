@@ -41,11 +41,8 @@ namespace modules {
         }
         else if (key == "radius") {
             scene.radius = stod(parts[1]);
-            scene.h = scene.radius * igl::PI / 20;
-            scene.rmax = scene.radius * 5;
-        }
-        else if (key == "timestep") {
-            scene.timestep = stod(parts[1]);
+            scene.h = scene.radius * igl::PI / 20; // Define h after radius !!!
+            scene.rmax = scene.radius * 5; // Define rmax after radius !!!
         }
         else if (key == "h") {
             scene.h = stod(parts[1]);
@@ -58,6 +55,77 @@ namespace modules {
         }
         else if (key == "rmax") {
             scene.rmax = stod(parts[1]);
+        }
+
+        else if (key == "volume") {
+            if (parts.size() < 2) {
+                cerr << "Error: surface type not specified" << endl;
+                exit(1);
+            }
+            scene.volume = scene_file::SceneObject_Volume();
+            if (parts[1] == "primitive") {
+				scene.volume.volumeType = scene_file::VolumeType::PRIMITIVE;
+				if (parts.size() < 3) {
+					cerr << "Error: primitive type not specified" << endl;
+					exit(1);
+				}
+				if (parts[2] == "sphere") {
+					scene.volume.primitiveType = scene_file::PrimitiveType::SPHERE;
+					if (parts.size() != 4) {
+						cerr << "Error: sphere radius not specified" << endl;
+						exit(1);
+					}
+					scene.volume.primitive_params.push_back(stod(parts[3]));
+				}
+				else if (parts[2] == "box") {
+					scene.volume.primitiveType = scene_file::PrimitiveType::BOX;
+					if (parts.size() != 6) {
+						cerr << "Error: box extents not specified" << endl;
+						exit(1);
+					}
+					for (size_t i = 3; i < 6; i++) {
+						scene.volume.primitive_params.push_back(stod(parts[i]));
+					}
+				}
+				else if (parts[2] == "roundbox") {
+					scene.volume.primitiveType = scene_file::PrimitiveType::ROUNDBOX;
+					if (parts.size() != 7) {
+						cerr << "Error: roundbox extents or radius not specified" << endl;
+						exit(1);
+					}
+					for (size_t i = 3; i < 7; i++) {
+						scene.volume.primitive_params.push_back(stod(parts[i]));
+					}
+				}
+				else if (parts[2] == "torus") {
+					scene.volume.primitiveType = scene_file::PrimitiveType::TORUS;
+					if (parts.size() != 5) {
+						cerr << "Error: torus radii not specified" << endl;
+						exit(1);
+					}
+					for (size_t i = 3; i < 5; i++) {
+						scene.volume.primitive_params.push_back(stod(parts[i]));
+					}
+				}
+				else {
+					cerr << "Error: unknown primitive type '" << parts[2] << "'" << endl;
+					exit(1);
+				}
+			}
+			else if (parts[1] == "sdf") {
+				scene.volume.volumeType = scene_file::VolumeType::SDF;
+			}
+			else if (parts[1] == "mesh") {
+				scene.volume.volumeType = scene_file::VolumeType::MESH;
+			}
+			else {
+				cerr << "Error: unknown surface type '" << parts[1] << "'" << endl;
+				exit(1);
+            }
+        }
+
+        else if (key == "timestep") {
+            scene.timestep = stod(parts[1]);
         }
         else if (key == "field_aligned") {
             scene.w_fieldAlignedness = stod(parts[1]);

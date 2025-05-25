@@ -1,0 +1,6 @@
+volume primitive box 1.2 1.2 1.2
+radius 0.1
+rmax 0.3
+h 0.015
+
+

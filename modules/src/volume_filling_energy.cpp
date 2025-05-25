@@ -1,11 +1,11 @@
 #include "volume_filling_energy.h"
 #include <chrono>
 #include <iostream>
-#include <TinyAD/ScalarFunction.hh>
 #include <glm/glm.hpp>
 #include <Eigen/Dense>
 #include <array>
 #include <medial_axis.h>
+#include <primitive_energies.h>
 #include <TinyAD/Utils/LinearSolver.hh>
 #include <TinyAD/Utils/NewtonDirection.hh>
 
@@ -215,32 +215,111 @@ namespace modules {
 
 		auto repulsiveEnd = std::chrono::high_resolution_clock::now();
 
-		// 4. Box constraint term (add this after the medial axis term)
-		func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
-			using T = TINYAD_SCALAR_TYPE(element);
-			int nodeId = element.handle;
+		// 4. Volume-constraint terms
+		auto volume = options.volume;
+		if (volume.volumeType == scene_file::VolumeType::PRIMITIVE) {
+			if (volume.primitiveType == scene_file::PrimitiveType::SPHERE) {
+				if (volume.primitive_params.size() < 1) {
+					std::cerr << "Error: Sphere primitive requires 1 parameter (radius)" << std::endl;
+					std::abort();
+				}
+				double sphereRadius = volume.primitive_params[0];
+				func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
+					using T = TINYAD_SCALAR_TYPE(element);
+					int nodeId = element.handle;
+					Eigen::Vector3<T> pos = element.variables(nodeId);
 
-			Eigen::Vector3<T> pos = element.variables(nodeId);
+					// Signed distance to sphere
+					T sdf = pos.norm() - sphereRadius;
 
-			// Box half-extents (adjust these to your desired box size)
-			Eigen::Vector3d boxExtents(1.2, 1.2, 1.2); // Example: 2x2x2 box centered at origin
-
-			// Signed distance to box
-			Eigen::Vector3<T> q = pos.cwiseAbs() - boxExtents;
-			T exterior_dist = (q.cwiseMax(0.0)).norm();
-			T interior_dist = fmin(fmax(q(0), fmax(q(1), q(2))), T(0.0));
-			T sdf = exterior_dist + interior_dist;
-			
-			// Barrier function: penalize points outside the box
-			T barrier_weight = 1000.0; // Adjust this to control constraint strength
-			T penalty = 0.0;
-
-			if (sdf > 0.0) { // Outside the box
-				penalty = barrier_weight * pow(sdf, 2); // Quadratic penalty
+					return (sdf > 0.0 ? 1000.0 * pow(sdf, 2) : 0) / totalCurveLength;
+				});
 			}
+			else if (volume.primitiveType == scene_file::PrimitiveType::BOX) {
+				if (volume.primitive_params.size() < 3) {
+					std::cerr << "Error: Box primitive requires 3 parameters (half-extents)" << std::endl;
+					std::abort();
+				}
+				Eigen::Vector3d boxExtents(
+					volume.primitive_params[0],
+					volume.primitive_params[1],
+					volume.primitive_params[2]
+				);
 
-			return penalty / totalCurveLength;
-		});
+				func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
+					using T = TINYAD_SCALAR_TYPE(element);
+					int nodeId = element.handle;
+					Eigen::Vector3<T> pos = element.variables(nodeId);
+
+					// Signed distance to box
+					Eigen::Vector3<T> q = pos.cwiseAbs() - boxExtents;
+					T exterior_dist = (q.cwiseMax(0.0)).norm();
+					T interior_dist = fmin(fmax(q(0), fmax(q(1), q(2))), T(0.0));
+					T sdf = exterior_dist + interior_dist;
+
+					return (sdf > 0.0 ? 1000.0 * pow(sdf, 2) : 0) / totalCurveLength;
+				});
+			}
+			else if (volume.primitiveType == scene_file::PrimitiveType::ROUNDBOX) {
+				if (volume.primitive_params.size() < 4) {
+					std::cerr << "Error: Roundbox primitive requires 4 parameters (half-extents and radius)" << std::endl;
+					std::abort();
+				}
+				Eigen::Vector3d boxExtents(
+					volume.primitive_params[0],
+					volume.primitive_params[1],
+					volume.primitive_params[2]
+				);
+				double radius = volume.primitive_params[3];
+				func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
+					using T = TINYAD_SCALAR_TYPE(element);
+					int nodeId = element.handle;
+					Eigen::Vector3<T> pos = element.variables(nodeId);
+
+					// Signed distance to roundbox
+					Eigen::Vector3<T> q = pos.cwiseAbs() - boxExtents;
+					T exterior_dist = (q.cwiseMax(0.0)).norm();
+					T interior_dist = fmin(fmax(q(0), fmax(q(1), q(2))), T(0.0));
+					T sdf = exterior_dist + interior_dist;
+					T roundbox_sdf = sdf - radius;
+
+					return (roundbox_sdf > 0.0 ? 1000.0 * pow(roundbox_sdf, 2) : 0) / totalCurveLength;
+				});
+			}
+			else if (volume.primitiveType == scene_file::PrimitiveType::TORUS) {
+				if (volume.primitive_params.size() < 2) {
+					std::cerr << "Error: Torus primitive requires 2 parameters (major and minor radii)" << std::endl;
+					std::abort();
+				}
+				double R = volume.primitive_params[0]; // Major radius
+				double r = volume.primitive_params[1]; // Minor radius
+				func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
+					using T = TINYAD_SCALAR_TYPE(element);
+					int nodeId = element.handle;
+					Eigen::Vector3<T> pos = element.variables(nodeId);
+
+					// Signed distance to torus
+					Eigen::Vector2<T> q = Eigen::Vector2<T>(Eigen::Vector2<T>(pos(0), pos(1)).norm() - R, pos(2));
+					T torus_sdf = q.norm() - r;
+
+					return (torus_sdf > 0.0 ? 1000.0 * pow(torus_sdf, 2) : 0) / totalCurveLength;
+				});
+			}
+			else {
+				std::abort(); // Unsupported primitive type
+			}
+		}
+		else if (volume.volumeType == scene_file::VolumeType::SDF) {
+			// Handle SDF volume type if needed
+			std::cerr << "SDF volume type not implemented yet." << std::endl;
+		}
+		else if (volume.volumeType == scene_file::VolumeType::MESH) {
+			// Handle mesh volume type if needed
+			std::cerr << "Mesh volume type not implemented yet." << std::endl;
+		}
+		else {
+			std::cerr << "Unknown volume type." << std::endl;
+		}
 
 
 		auto x = func.x_from_data([&](int v_idx) {
@@ -275,6 +354,9 @@ namespace modules {
 			nodeMedialAxis
 		);
 	}
+
+
+
 
 	std::tuple<
 		std::vector<Vector3>, // descent direction

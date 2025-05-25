@@ -1,0 +1,6 @@
+volume primitive roundbox 0.8 0.8 0.4 0.5
+radius 0.1
+rmax 0.3
+h 0.015
+
+

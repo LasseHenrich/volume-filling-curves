@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <geometrycentral/utilities/vector3.h>
 #include <scene_file.h>
+#include <TinyAD/ScalarFunction.hh>
 
 using namespace geometrycentral;
 
@@ -34,4 +35,9 @@ namespace modules {
 	);
 
 	Vector3 arbitrary_normal(const Vector3& t);
+
+	template <typename ReturnType, typename ElementType>
+	ReturnType volume_penalty(const ElementType& element, scene_file::SceneObject_Volume &surface) {
+
+	}
 }
