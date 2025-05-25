@@ -90,6 +90,7 @@ namespace modules {
 
 		std::vector<std::vector<Vector3>> nodeMedialAxis(nodes.size());
 
+		#pragma omp parallel for
 		for (int i = 0; i < nodes.size(); i++) {
 			// create a plane perpendicular to the tangent at this node
 			Vector3 t = nodeTangents[i];
