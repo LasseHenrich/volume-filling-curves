@@ -91,10 +91,7 @@ namespace modules {
 			rotationMatrix[i] = R;
 		}
 
-		//std::cout << "field alignedness: " << options.w_fieldAlignedness << ", curvature alignedness: " << options.w_curvatureAlignedness << ", bilaplacian weight: " << options.w_bilaplacian << std::endl;
-		// no support for these at the moment, all zero
-
-		// 2. Dirichlet term
+		// 2. Dirichlet term (Penalize length)
 		func.add_elements<2>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
 			using T = TINYAD_SCALAR_TYPE(element);
 			int segmentId = element.handle;
