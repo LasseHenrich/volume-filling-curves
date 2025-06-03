@@ -23,6 +23,12 @@ namespace modules {
 		const std::vector<double>& segmentLengths,
 		const scene_file::SceneObject& options
 	) {
+		// making sure that we have at least three segments
+		if (segments.size() < 3) {
+			std::cerr << "Error: At least three segments are required." << std::endl;
+			std::abort();
+		}
+
 		auto start = std::chrono::high_resolution_clock::now();
 
 		double radius = options.radius;
@@ -48,38 +54,47 @@ namespace modules {
 		std::vector<Vector3> segmentNormal(segments.size());
 		std::vector<Vector3> segmentBitangent(segments.size());
 		
-		// 1. Compute tangents (HARDCODED normal)
+		// 1. Compute tangents
 		for (size_t i = 0; i < segments.size(); i++) {
 			int j = segments[i][0];
 			int k = segments[i][1];
 
 			Vector3 t = normalize(nodes[k] - nodes[j]);
+			segmentTangents[i] = t;
+		}
+
+		for (size_t i = 0; i < segments.size(); i++) {
+			Vector3 t = segmentTangents[i];
 			Vector3 b;
 			Vector3 n;
 
-			if (true) {
-				if (i > 0) {
-					Vector3 t_prev = segmentTangents[i - 1];
-					Vector3 curvature = normalize(t - t_prev);
-					n = curvature;
-					if (norm(t - t_prev) < 1e-5) { // curvature=NaN iff t=t_prev
-						n = arbitrary_normal(t);
-					}
-					b = normalize(cross(t, n));
-					n = normalize(cross(b, t));
+			// Note: This is just one possiblity to calculate the three vectors
+			// If we have problems, we could choose something different
+			if (true) { // 3D
+				Vector3 t_prev, t_next;
+				if (i == 0) {
+					t_prev = segmentTangents[segments.size() - 1];
+					t_next = segmentTangents[i + 1];
+				}
+				else if (i == segments.size() - 1) {
+					t_prev = segmentTangents[i - 1];
+					t_next = segmentTangents[0];
 				}
 				else {
-					n = arbitrary_normal(t);
-					b = normalize(cross(t, n));
-					n = normalize(cross(b, t));
+					t_prev = segmentTangents[i - 1];
+					t_next = segmentTangents[i + 1];
 				}
+				n = normalize(cross(t_prev, t_next));
+				if (norm(t_prev - t_next) < 1e-5) {  // curvature=NaN iff t_prev \approx t_next
+					n = arbitrary_normal(t);
+				}
+				b = normalize(cross(t, n));
 			}
-			else {
+			else { // 2D
 				n = Vector3{ 0, 1, 0 }; // DEBUG for 2D case. ToDo
 				b = cross(n, t);
 			}
 
-			segmentTangents[i] = t;
 			segmentNormal[i] = n;
 			segmentBitangent[i] = b;
 
