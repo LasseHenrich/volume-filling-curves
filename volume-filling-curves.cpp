@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
 	initialSegments = segments;
 	initialSegmentLengths = segmentLengths;
 
-	polyscope::registerCurveNetwork("initial curve", initialNodes, initialSegments);
+	polyscope::registerCurveNetwork("initial curve", initialNodes, initialSegments)->setEnabled(false);
     polyscope::registerCurveNetwork("curve", nodes, segments);
 
     // ToDo: Calculate and render tangents (and normals, if that concept applies)

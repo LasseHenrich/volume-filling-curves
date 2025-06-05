@@ -26,9 +26,9 @@ namespace modules {
         };
 
         struct SceneObject_Volume {
-			VolumeType volumeType = PRIMITIVE; // Default to primitive surface
+			VolumeType volumeType; // Default to primitive surface
 
-            PrimitiveType primitiveType = SPHERE; // Default to sphere
+            PrimitiveType primitiveType; // Default to sphere
             std::vector<double> primitive_params = {}; // Parameters for the primitive (e.g., radius for sphere, extents for box)
             // ToDo: Add params documentation here
         };
