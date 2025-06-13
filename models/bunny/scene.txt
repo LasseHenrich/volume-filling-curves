@@ -1,4 +1,4 @@
-volume mesh bun_zipper.ply 0.005
+volume mesh bunny_scaled_250.ply
 radius 1
 rmax 3
 h 0.15

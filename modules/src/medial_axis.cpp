@@ -78,12 +78,18 @@ namespace modules {
 		const std::vector<Vector3>& nodeTangents,
 		const std::vector<Vector3>& nodeNormals,
 		const std::vector<Vector3>& nodeBitangents,
-		const double maxRadius
+		const double maxRadius,
+		const std::vector<Vector3>& meshPoints
 	) {
+		std::vector<Vector3> allpoints = nodes;
+		std::cout << "Number of nodes: " << nodes.size() << std::endl;
+		allpoints.insert(allpoints.end(), meshPoints.begin(), meshPoints.end());
+		std::cout << "Number of all points: " << allpoints.size() << std::endl;
+
 		// create a closes point query
-		Eigen::MatrixXd _V(3, nodes.size());
-		for (int i = 0; i < nodes.size(); i++) {
-			_V.col(i) << nodes[i].x, nodes[i].y, nodes[i].z;
+		Eigen::MatrixXd _V(3, allpoints.size());
+		for (int i = 0; i < allpoints.size(); i++) {
+			_V.col(i) << allpoints[i].x, allpoints[i].y, allpoints[i].z;
 		}
 		knncpp::KDTreeMinkowskiX<double, knncpp::EuclideanDistance<double>> kdtree(_V);
 		kdtree.build();
@@ -101,8 +107,8 @@ namespace modules {
 			double r_min_minus = std::numeric_limits<double>::infinity();
 			double r_min_plus = std::numeric_limits<double>::infinity();
 
-			r_min_plus = std::min(maximumBallRadius(x, b, i, maxRadius, nodes, kdtree), maxRadius);
-			r_min_minus = std::min(maximumBallRadius(x, -b, i, maxRadius, nodes, kdtree), maxRadius);
+			r_min_plus = std::min(maximumBallRadius(x, b, i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_minus = std::min(maximumBallRadius(x, -b, i, maxRadius, allpoints, kdtree), maxRadius);
 
 			nodeMedialAxis[i].emplace_back(nodes[i] - r_min_minus * b);
 			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus * b);

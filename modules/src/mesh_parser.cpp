@@ -8,6 +8,25 @@ using namespace geometrycentral;
 using namespace geometrycentral::surface;
 
 namespace modules {
+	std::vector<Vector3> mesh_to_nodes(std::string filename) {
+		openvdb::initialize();
+		std::unique_ptr<SurfaceMesh> mesh;
+		std::unique_ptr<VertexPositionGeometry> geometry;
+		std::tie(mesh, geometry) = readSurfaceMesh(filename);
+
+		if (!mesh || !geometry) {
+			std::cerr << "Error reading mesh from file: " << filename << std::endl;
+			std::abort();
+		}
+
+		std::vector<Vector3> nodes;
+		for (Vertex v : mesh->vertices()) {
+			auto p = geometry->inputVertexPositions[v];
+			nodes.emplace_back(Vector3{ p.x, p.y, p.z });
+		}
+		return nodes;
+	}
+
 	openvdb::FloatGrid::Ptr mesh_to_sdf(std::string filename, double voxelsize) {
 		openvdb::initialize();
 

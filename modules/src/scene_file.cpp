@@ -123,8 +123,15 @@ namespace modules {
 				}
 				scene.volume.mesh_filename = directory + parts[2];
 
-                if (parts.size() > 3) {
-                    scene.volume.mesh_voxelsize = stod(parts[3]);
+                if (parts.size() < 4) {
+					scene.volume.convert_to_sdf = false; // Default to true
+				}
+                else {
+                    scene.volume.convert_to_sdf = (parts[3] == "true");
+                }
+
+                if (parts.size() > 4 && scene.volume.convert_to_sdf) {
+                    scene.volume.mesh_voxelsize = stod(parts[4]);
                 }
 			}
 			else {

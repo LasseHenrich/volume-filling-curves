@@ -7,13 +7,14 @@
 #include "args/args.hxx"
 
 #include <openvdb/openvdb.h>
+#include <openvdb/tools/Interpolation.h>
 
 #include "volume-filling-curves.h"
 #include <chrono>
 #include <volume_filling_energy.h>
 #include <volume_path_evolution.h>
 #include <scene_file.h>
-#include <mesh_to_sdf.h>
+#include <mesh_parser.h>
 
 using namespace modules;
 
@@ -145,30 +146,51 @@ int main(int argc, char **argv) {
 
     if (scene.volume.volumeType == scene_file::VolumeType::MESH) {
 		std::cout << "Using mesh volume" << std::endl;
-		// Use openvdb to convert mesh to SDF
-        openvdb::FloatGrid::Ptr sdf = modules::mesh_to_sdf(
-            scene.volume.mesh_filename, scene.volume.mesh_voxelsize
-        );
+        if (scene.volume.convert_to_sdf) {
+            // Use openvdb to convert mesh to SDF
+            auto sdf = modules::mesh_to_sdf(
+                scene.volume.mesh_filename, scene.volume.mesh_voxelsize
+            );
 
-		if (!sdf) {
-			std::cerr << "Error converting mesh to SDF" << std::endl;
-			return EXIT_FAILURE;
-		}
+            if (!sdf) {
+                std::cerr << "Error converting mesh to SDF" << std::endl;
+                return EXIT_FAILURE;
+            }
 
-        // visualize sdf using a point cloud grid
-		std::vector<Vector3> points;
-		std::vector<float> values;
-		for (auto iter = sdf->cbeginValueOn(); iter; ++iter) {
-			openvdb::Vec3s pos = iter.getCoord().asVec3s();
-			points.push_back(Vector3{ pos.x(), pos.y(), pos.z() });
-			values.push_back(iter.getValue());
-		}
+            // visualize sdf using a point cloud grid
+            std::vector<Vector3> sdf_points;
+            std::vector<float> sdf_values;
 
-		polyscope::registerPointCloud("SDF", points)
-			->addScalarQuantity("SDF value", values)
-			->setEnabled(true);
+            for (auto iter = sdf->cbeginValueOn(); iter; ++iter) {
+                openvdb::Vec3s pos = sdf->indexToWorld(iter.getCoord().asVec3s());
+                sdf_points.push_back(Vector3{ pos.x(), pos.y(), pos.z() });
+                sdf_values.push_back(iter.getValue() / sdf->background());
+            }
 
-        scene.volume.sdf = sdf;
+            for (auto iter = sdf->cbeginValueOn(); iter; ++iter) {
+                if (iter.getValue() < 0) {
+                    openvdb::Coord ijk = iter.getCoord();
+                    openvdb::Vec3d world_pos = sdf->indexToWorld(ijk);
+                    std::cout << "Negative SDF at world: " << world_pos
+                        << " value: " << iter.getValue() << std::endl;
+                    break; // Just show first one
+                }
+            }
+
+            polyscope::registerPointCloud("SDF", sdf_points)
+                ->addScalarQuantity("SDF value", sdf_values)
+                ->setEnabled(true);
+
+            scene.volume.sdf = sdf;
+        }
+        else {
+			auto mesh_points = modules::mesh_to_nodes(scene.volume.mesh_filename);
+		    scene.volume.mesh_points = mesh_points;
+
+            // visualize points
+			polyscope::registerPointCloud("mesh points", mesh_points)
+				->setEnabled(true);
+        }
 
         // ToDo: Initialize nodes relative to loaded volume?
 	}
@@ -203,8 +225,17 @@ int main(int argc, char **argv) {
             float x = circleRadius * cos(angle);
             float y = circleRadius * sin(angle);
             float z = circleRadius * sin(2*angle) * 0.3;
+
 			nodes.push_back(Vector3{ x, y, z });
         }
+
+        // if mesh, move nodes to mesh's center
+		if (scene.volume.volumeType == scene_file::VolumeType::MESH && scene.volume.convert_to_sdf) {
+			openvdb::Vec3s center = scene.volume.sdf->evalActiveVoxelBoundingBox().getCenter();
+			for (auto& node : nodes) {
+				node += Vector3{ center.x(), center.y(), center.z() };
+			}
+		}
 
         // create segments
         for (int i = 0; i < nodes.size(); i++) {

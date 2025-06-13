@@ -8,6 +8,7 @@
 #include <primitive_energies.h>
 #include <TinyAD/Utils/LinearSolver.hh>
 #include <TinyAD/Utils/NewtonDirection.hh>
+#include <openvdb/tools/Interpolation.h>
 
 namespace modules {
 	const double branchRatio = std::sqrt(std::sqrt(2));
@@ -196,7 +197,8 @@ namespace modules {
 			nodeTangents,
 			nodeNormals,
 			nodeBitangents,
-			maxRadius
+			maxRadius,
+			options.volume.mesh_points
 		);
 
 		auto medialAxisEnd = std::chrono::high_resolution_clock::now();
@@ -319,13 +321,41 @@ namespace modules {
 				std::abort(); // Unsupported primitive type
 			}
 		}
-		else if (volume.volumeType == scene_file::VolumeType::SDF) {
-			// Handle SDF volume type if needed
-			std::cerr << "SDF volume type not implemented yet." << std::endl;
+		else if (volume.volumeType == scene_file::VolumeType::MESH && volume.convert_to_sdf) {
+			if (!volume.sdf) {
+				std::cerr << "Error: SDF volume is not initialized." << std::endl;
+				std::abort();
+			}
+
+			openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler> sampler(*volume.sdf);
+
+			func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
+				using T = TINYAD_SCALAR_TYPE(element);
+				int nodeId = element.handle;
+				Eigen::Vector3<T> pos = element.variables(nodeId);
+
+				// Convert TinyAD position to OpenVDB world coordinates
+				openvdb::Vec3d world_pos(TinyAD::to_passive(pos(0)),
+					TinyAD::to_passive(pos(1)),
+					TinyAD::to_passive(pos(2)));
+
+				// Sample the SDF value from the OpenVDB grid
+				T sdf_value = static_cast<T>(sampler.wsSample(world_pos));
+
+				auto returnval = (sdf_value > 0.0 ? 1000.0 * pow(sdf_value, 2) : 0) / totalCurveLength;
+				if (sdf_value > 0.0) {
+					std::cout << "SDF positive at node, position = (" << pos(0) << ", " << pos(1) << ", " << pos(2) << ")"
+						<< ", return value = " << returnval << std::endl;
+				}
+				return returnval;
+			});
 		}
 		else if (volume.volumeType == scene_file::VolumeType::MESH) {
-			// Handle mesh volume type if needed
-			std::cerr << "Mesh volume type not implemented yet." << std::endl;
+			// To nothing, handled via medial_axis calculation
+		}
+		else if (volume.volumeType == scene_file::VolumeType::SDF) {
+			// Handle sdf volume type if needed
+			std::cerr << "SDF volume type not implemented yet." << std::endl;
 		}
 		else {
 			std::cerr << "Unknown volume type." << std::endl;

@@ -13,6 +13,7 @@ namespace modules {
 		const std::vector<Vector3>& nodeTangents,
 		const std::vector<Vector3>& nodeNormals,
 		const std::vector<Vector3>& nodeBitangents,
-		const double maxRadius
+		const double maxRadius,
+		const std::vector<Vector3>& meshPoints
 	);
 }

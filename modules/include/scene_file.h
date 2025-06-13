@@ -35,8 +35,10 @@ namespace modules {
 
             // Mesh params
 			std::string mesh_filename = "";
+            bool convert_to_sdf;
             double mesh_voxelsize = 0.01f;
-            openvdb::FloatGrid::Ptr sdf;
+			std::vector<Vector3> mesh_points = {}; // initialized through code
+            openvdb::FloatGrid::Ptr sdf; // initialized through code
         };
 
         // We may not need all of these props,
