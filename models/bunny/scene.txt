@@ -1,0 +1,4 @@
+volume mesh bun_zipper.ply 0.005
+radius 1
+rmax 3
+h 0.15

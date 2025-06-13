@@ -10,10 +10,10 @@ namespace modules {
 	template <typename ReturnType, typename ElementType>
 	ReturnType primitive_penalty(const ElementType& element, scene_file::SceneObject_Volume& primitive)
 	{
-		if (primitive.primitiveType == PrimitiveType::SPHERE) {
+		if (primitive.primitive_type == PrimitiveType::SPHERE) {
 
 		}
-		else if (primitive.primitiveType == PrimitiveType::BOX) {
+		else if (primitive.primitive_type == PrimitiveType::BOX) {
 			if (primitive.primitive_params.size() < 3) {
 				std::cerr << "Error: Box primitive requires 3 parameters (half-extents)" << std::endl;
 				std::abort();

@@ -6,11 +6,14 @@
 
 #include "args/args.hxx"
 
+#include <openvdb/openvdb.h>
+
 #include "volume-filling-curves.h"
 #include <chrono>
 #include <volume_filling_energy.h>
 #include <volume_path_evolution.h>
 #include <scene_file.h>
+#include <mesh_to_sdf.h>
 
 using namespace modules;
 
@@ -140,32 +143,51 @@ int main(int argc, char **argv) {
         scene.rmax = scene.radius * 10;
     }
 
-    // ToDo: Use specified volume
+    if (scene.volume.volumeType == scene_file::VolumeType::MESH) {
+		std::cout << "Using mesh volume" << std::endl;
+		// Use openvdb to convert mesh to SDF
+        openvdb::FloatGrid::Ptr sdf = modules::mesh_to_sdf(
+            scene.volume.mesh_filename, scene.volume.mesh_voxelsize
+        );
+
+		if (!sdf) {
+			std::cerr << "Error converting mesh to SDF" << std::endl;
+			return EXIT_FAILURE;
+		}
+
+        // visualize sdf using a point cloud grid
+		std::vector<Vector3> points;
+		std::vector<float> values;
+		for (auto iter = sdf->cbeginValueOn(); iter; ++iter) {
+			openvdb::Vec3s pos = iter.getCoord().asVec3s();
+			points.push_back(Vector3{ pos.x(), pos.y(), pos.z() });
+			values.push_back(iter.getValue());
+		}
+
+		polyscope::registerPointCloud("SDF", points)
+			->addScalarQuantity("SDF value", values)
+			->setEnabled(true);
+
+        scene.volume.sdf = sdf;
+
+        // ToDo: Initialize nodes relative to loaded volume?
+	}
+	else if (scene.volume.volumeType == scene_file::VolumeType::SDF) {
+	}
 
     if (scene.curveFileName != "") {
         std::tie(nodes, segments) = modules::read_nodes(scene.curveFileName);
-
-        /*
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_real_distribution<float> noiseDist(-0.1f, 0.1f);
-
-        // add noise to nodes
-        for (int i = 0; i < nodes.size(); i++) {
-            nodes[i].x += noiseDist(gen);
-            nodes[i].y += noiseDist(gen);
-            nodes[i].z += noiseDist(gen);
-        }
-        */
     }
 
+    // fallback in case nodes have not yet been initialized by any prior logic
     if (nodes.size() == 0) {
+        // just create a circle (with noise) around the origin
+
         float circleRadius = 1.f;
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<float> noiseDist(-0.1f, 0.1f);
 
-        // just create a circle (with noise) around the origin
         /*
         for (int i = 0; i < 100; i++) {
             float angle = (float)i / 100 * 2 * igl::PI;

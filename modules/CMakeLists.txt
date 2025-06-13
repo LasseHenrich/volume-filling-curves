@@ -11,7 +11,7 @@ file(GLOB_RECURSE MODULES_SRCS src/*.cpp src/*.cc)
 # Create a single library for the project
 add_library(modules ${MODULES_SRCS})
 
-target_link_libraries(modules geometry-central TinyAD polyscope)
+target_link_libraries(modules geometry-central TinyAD polyscope OpenVDB::openvdb)
 target_include_directories(modules PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../deps/libigl/include")
 
 target_include_directories(modules PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

@@ -68,8 +68,6 @@ namespace modules {
 			Vector3 b;
 			Vector3 n;
 
-			// Note: This is just one possiblity to calculate the three vectors
-			// If we have problems, we could choose something different
 			if (true) { // 3D
 				Vector3 t_prev, t_next;
 				if (i == 0) {
@@ -230,7 +228,7 @@ namespace modules {
 		// 4. Volume-constraint terms
 		auto volume = options.volume;
 		if (volume.volumeType == scene_file::VolumeType::PRIMITIVE) {
-			if (volume.primitiveType == scene_file::PrimitiveType::SPHERE) {
+			if (volume.primitive_type == scene_file::PrimitiveType::SPHERE) {
 				if (volume.primitive_params.size() < 1) {
 					std::cerr << "Error: Sphere primitive requires 1 parameter (radius)" << std::endl;
 					std::abort();
@@ -247,7 +245,7 @@ namespace modules {
 					return (sdf > 0.0 ? 1000.0 * pow(sdf, 2) : 0) / totalCurveLength;
 				});
 			}
-			else if (volume.primitiveType == scene_file::PrimitiveType::BOX) {
+			else if (volume.primitive_type == scene_file::PrimitiveType::BOX) {
 				if (volume.primitive_params.size() < 3) {
 					std::cerr << "Error: Box primitive requires 3 parameters (half-extents)" << std::endl;
 					std::abort();
@@ -272,7 +270,7 @@ namespace modules {
 					return (sdf > 0.0 ? 1000.0 * pow(sdf, 2) : 0) / totalCurveLength;
 				});
 			}
-			else if (volume.primitiveType == scene_file::PrimitiveType::ROUNDBOX) {
+			else if (volume.primitive_type == scene_file::PrimitiveType::ROUNDBOX) {
 				if (volume.primitive_params.size() < 4) {
 					std::cerr << "Error: Roundbox primitive requires 4 parameters (half-extents and radius)" << std::endl;
 					std::abort();
@@ -298,7 +296,7 @@ namespace modules {
 					return (roundbox_sdf > 0.0 ? 1000.0 * pow(roundbox_sdf, 2) : 0) / totalCurveLength;
 				});
 			}
-			else if (volume.primitiveType == scene_file::PrimitiveType::TORUS) {
+			else if (volume.primitive_type == scene_file::PrimitiveType::TORUS) {
 				if (volume.primitive_params.size() < 2) {
 					std::cerr << "Error: Torus primitive requires 2 parameters (major and minor radii)" << std::endl;
 					std::abort();

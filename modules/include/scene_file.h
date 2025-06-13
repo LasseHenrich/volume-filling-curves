@@ -7,6 +7,7 @@
 
 #include <igl/PI.h>
 #include <geometrycentral/utilities/vector3.h>
+#include <openvdb/openvdb.h>
 
 using namespace geometrycentral;
 
@@ -26,11 +27,16 @@ namespace modules {
         };
 
         struct SceneObject_Volume {
-			VolumeType volumeType; // Default to primitive surface
+			VolumeType volumeType;
 
-            PrimitiveType primitiveType; // Default to sphere
+            // Primitive params
+            PrimitiveType primitive_type = PrimitiveType::SPHERE;
             std::vector<double> primitive_params = {}; // Parameters for the primitive (e.g., radius for sphere, extents for box)
-            // ToDo: Add params documentation here
+
+            // Mesh params
+			std::string mesh_filename = "";
+            double mesh_voxelsize = 0.01f;
+            openvdb::FloatGrid::Ptr sdf;
         };
 
         // We may not need all of these props,

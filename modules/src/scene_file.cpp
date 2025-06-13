@@ -70,7 +70,7 @@ namespace modules {
 					exit(1);
 				}
 				if (parts[2] == "sphere") {
-					scene.volume.primitiveType = scene_file::PrimitiveType::SPHERE;
+					scene.volume.primitive_type = scene_file::PrimitiveType::SPHERE;
 					if (parts.size() != 4) {
 						cerr << "Error: sphere radius not specified" << endl;
 						exit(1);
@@ -78,7 +78,7 @@ namespace modules {
 					scene.volume.primitive_params.push_back(stod(parts[3]));
 				}
 				else if (parts[2] == "box") {
-					scene.volume.primitiveType = scene_file::PrimitiveType::BOX;
+					scene.volume.primitive_type = scene_file::PrimitiveType::BOX;
 					if (parts.size() != 6) {
 						cerr << "Error: box extents not specified" << endl;
 						exit(1);
@@ -88,7 +88,7 @@ namespace modules {
 					}
 				}
 				else if (parts[2] == "roundbox") {
-					scene.volume.primitiveType = scene_file::PrimitiveType::ROUNDBOX;
+					scene.volume.primitive_type = scene_file::PrimitiveType::ROUNDBOX;
 					if (parts.size() != 7) {
 						cerr << "Error: roundbox extents or radius not specified" << endl;
 						exit(1);
@@ -98,7 +98,7 @@ namespace modules {
 					}
 				}
 				else if (parts[2] == "torus") {
-					scene.volume.primitiveType = scene_file::PrimitiveType::TORUS;
+					scene.volume.primitive_type = scene_file::PrimitiveType::TORUS;
 					if (parts.size() != 5) {
 						cerr << "Error: torus radii not specified" << endl;
 						exit(1);
@@ -117,6 +117,15 @@ namespace modules {
 			}
 			else if (parts[1] == "mesh") {
 				scene.volume.volumeType = scene_file::VolumeType::MESH;
+				if (parts.size() < 3) {
+					cerr << "Error: mesh filename not specified" << endl;
+					exit(1);
+				}
+				scene.volume.mesh_filename = directory + parts[2];
+
+                if (parts.size() > 3) {
+                    scene.volume.mesh_voxelsize = stod(parts[3]);
+                }
 			}
 			else {
 				cerr << "Error: unknown surface type '" << parts[1] << "'" << endl;

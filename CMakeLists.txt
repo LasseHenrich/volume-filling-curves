@@ -22,8 +22,9 @@ else()
   message( FATAL_ERROR "Unrecognized compiler [${CMAKE_CXX_COMPILER_ID}]" )
 endif()
 
-# for debugging
-set(CMAKE_BUILD_TYPE Debug)
+set(VCPKG_ROOT "C:/Users/lasse/Documents/GitHub/vcpkg")
+
+find_package(OpenVDB REQUIRED CONFIG)
 
 # Deps
 add_subdirectory(deps/geometry-central)
@@ -57,7 +58,11 @@ target_include_directories(volume-filling-curves PUBLIC ${CMAKE_CURRENT_SOURCE_D
 # add the args.hxx project which we use for command line args
 target_include_directories(volume-filling-curves PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/polyscope/deps/args")
 target_include_directories(volume-filling-curves PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/libigl/include")
-target_link_libraries(volume-filling-curves PUBLIC geometry-central polyscope modules TinyAD)
+target_link_libraries(volume-filling-curves PUBLIC geometry-central polyscope modules TinyAD PRIVATE OpenVDB::openvdb)
+
+target_include_directories(volume-filling-curves PRIVATE
+    "${VCPKG_ROOT}/installed/x64-windows/include"
+)
 
 # tinyad needs C++17 (not sure if that means this project does too)
 target_compile_features(volume-filling-curves PRIVATE cxx_std_17)
