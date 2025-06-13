@@ -230,12 +230,14 @@ int main(int argc, char **argv) {
         }
 
         // if mesh, move nodes to mesh's center
+        /*
 		if (scene.volume.volumeType == scene_file::VolumeType::MESH && scene.volume.convert_to_sdf) {
 			openvdb::Vec3s center = scene.volume.sdf->evalActiveVoxelBoundingBox().getCenter();
 			for (auto& node : nodes) {
 				node += Vector3{ center.x(), center.y(), center.z() };
 			}
 		}
+        */
 
         // create segments
         for (int i = 0; i < nodes.size(); i++) {

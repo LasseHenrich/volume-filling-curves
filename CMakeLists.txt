@@ -17,6 +17,8 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   add_definitions(/D "_CRT_SECURE_NO_WARNINGS")
   add_definitions(-DNOMINMAX)
   add_definitions(-D_USE_MATH_DEFINES)
+
+  add_compile_options(/bigobj) # needed for large files, specifically for using openvdb in debug mode
 else()
   # unrecognized
   message( FATAL_ERROR "Unrecognized compiler [${CMAKE_CXX_COMPILER_ID}]" )

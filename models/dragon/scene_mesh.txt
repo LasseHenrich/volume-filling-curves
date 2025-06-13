@@ -1,0 +1,4 @@
+volume mesh dragon.ply false
+radius 2.5
+rmax 7.5
+h 0.4

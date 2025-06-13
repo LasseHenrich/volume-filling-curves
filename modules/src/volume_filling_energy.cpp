@@ -9,6 +9,7 @@
 #include <TinyAD/Utils/LinearSolver.hh>
 #include <TinyAD/Utils/NewtonDirection.hh>
 #include <openvdb/tools/Interpolation.h>
+#include <openvdb/tools/GridOperators.h>
 
 namespace modules {
 	const double branchRatio = std::sqrt(std::sqrt(2));
@@ -334,20 +335,38 @@ namespace modules {
 				int nodeId = element.handle;
 				Eigen::Vector3<T> pos = element.variables(nodeId);
 
-				// Convert TinyAD position to OpenVDB world coordinates
+				// Get current passive position for sampling
 				openvdb::Vec3d world_pos(TinyAD::to_passive(pos(0)),
 					TinyAD::to_passive(pos(1)),
 					TinyAD::to_passive(pos(2)));
 
-				// Sample the SDF value from the OpenVDB grid
-				T sdf_value = static_cast<T>(sampler.wsSample(world_pos));
+				// Sample SDF value at current position
+				double sdf_value = sampler.wsSample(world_pos);
 
-				auto returnval = (sdf_value > 0.0 ? 1000.0 * pow(sdf_value, 2) : 0) / totalCurveLength;
-				if (sdf_value > 0.0) {
-					std::cout << "SDF positive at node, position = (" << pos(0) << ", " << pos(1) << ", " << pos(2) << ")"
-						<< ", return value = " << returnval << std::endl;
+				if (sdf_value <= 0.0) {
+					return T(0.0);
 				}
-				return returnval;
+
+				// Compute gradient using finite differences with error checking
+				const double h = 1e-6;
+				double sdf_px = sampler.wsSample(world_pos + openvdb::Vec3d(h, 0, 0));
+				double sdf_mx = sampler.wsSample(world_pos - openvdb::Vec3d(h, 0, 0));
+				double sdf_py = sampler.wsSample(world_pos + openvdb::Vec3d(0, h, 0));
+				double sdf_my = sampler.wsSample(world_pos - openvdb::Vec3d(0, h, 0));
+				double sdf_pz = sampler.wsSample(world_pos + openvdb::Vec3d(0, 0, h));
+				double sdf_mz = sampler.wsSample(world_pos - openvdb::Vec3d(0, 0, h));
+
+				double grad_x = (sdf_px - sdf_mx) / (2.0 * h);
+				double grad_y = (sdf_py - sdf_my) / (2.0 * h);
+				double grad_z = (sdf_pz - sdf_mz) / (2.0 * h);
+
+				// Create differentiable SDF using linear approximation
+				T sdf_approx = T(sdf_value) +
+					T(grad_x) * (pos(0) - T(world_pos[0])) +
+					T(grad_y) * (pos(1) - T(world_pos[1])) +
+					T(grad_z) * (pos(2) - T(world_pos[2]));
+
+				return T(1000) * sdf_approx * sdf_approx / T(totalCurveLength);
 			});
 		}
 		else if (volume.volumeType == scene_file::VolumeType::MESH) {

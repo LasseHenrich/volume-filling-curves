@@ -1,0 +1,4 @@
+volume mesh bunny_scaled_500.ply
+radius 1
+rmax 3
+h 0.15
