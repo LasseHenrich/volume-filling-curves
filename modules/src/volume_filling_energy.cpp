@@ -206,25 +206,36 @@ namespace modules {
 
 		// 3.3 Add medial axis energy term
 		// note that with our current setup we just have one uniform alpha
+		double totalMedialAxisEnergy = 0;
 		func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
 			using T = TINYAD_SCALAR_TYPE(element);
 			int nodeId = element.handle;
 
 			auto _c_0 = nodeMedialAxis[nodeId][0];
 			auto _c_1 = nodeMedialAxis[nodeId][1];
+			auto _c_2 = nodeMedialAxis[nodeId][2];
+			auto _c_3 = nodeMedialAxis[nodeId][3];
 
 			Eigen::Vector3d c_0(_c_0.x, _c_0.y, _c_0.z);
 			Eigen::Vector3d c_1(_c_1.x, _c_1.y, _c_1.z);
+			Eigen::Vector3d c_2(_c_2.x, _c_2.y, _c_2.z);
+			Eigen::Vector3d c_3(_c_3.x, _c_3.y, _c_3.z);
 
 			T l_0 = (element.variables(nodeId) - c_0).norm();
 			T l_1 = (element.variables(nodeId) - c_1).norm();
+			T l_2 = (element.variables(nodeId) - c_2).norm();
+			T l_3 = (element.variables(nodeId) - c_3).norm();
 
 			auto result = alpha * nodeWeight[nodeId] * (
 				pow(pow(l_0, 2) + pow(l_1, 2), q / 2)
 				) / totalCurveLength;
 
+			//totalMedialAxisEnergy += result;
+
 			return result;
 		});
+
+		std::cout << "Total Medial Axis Energy: " << totalMedialAxisEnergy << std::endl;
 
 		auto repulsiveEnd = std::chrono::high_resolution_clock::now();
 
@@ -330,6 +341,7 @@ namespace modules {
 
 			openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler> sampler(*volume.sdf);
 
+			double totalSdfEnergy = 0;
 			func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
 				using T = TINYAD_SCALAR_TYPE(element);
 				int nodeId = element.handle;
@@ -348,7 +360,7 @@ namespace modules {
 				}
 
 				// Compute gradient using finite differences with error checking
-				const double h = 1e-6;
+				const double h = 1e-1;
 				double sdf_px = sampler.wsSample(world_pos + openvdb::Vec3d(h, 0, 0));
 				double sdf_mx = sampler.wsSample(world_pos - openvdb::Vec3d(h, 0, 0));
 				double sdf_py = sampler.wsSample(world_pos + openvdb::Vec3d(0, h, 0));
@@ -366,8 +378,14 @@ namespace modules {
 					T(grad_y) * (pos(1) - T(world_pos[1])) +
 					T(grad_z) * (pos(2) - T(world_pos[2]));
 
-				return T(1000) * sdf_approx * sdf_approx / T(totalCurveLength);
+				auto result = T(1000) * sdf_approx * sdf_approx / T(totalCurveLength);
+
+				//totalSdfEnergy += result;
+
+				return result;
 			});
+
+			std::cout << "Total SDF Energy: " << totalSdfEnergy << std::endl;
 		}
 		else if (volume.volumeType == scene_file::VolumeType::MESH) {
 			// To nothing, handled via medial_axis calculation

@@ -1,4 +1,4 @@
-radius 0.1
-rmax 0.3
-h 0.015
+radius 0.3
+rmax 0.9
+h 0.045
 

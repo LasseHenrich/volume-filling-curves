@@ -54,6 +54,7 @@ namespace modules {
             double q = 2;
 
 			SceneObject_Volume volume;
+            bool visualizeVolume = false;
 
             double timestep = 1.;
             double w_fieldAlignedness = 0;

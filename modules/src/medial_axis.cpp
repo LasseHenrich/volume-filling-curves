@@ -1,5 +1,6 @@
 #include "medial_axis.h"
 #include <knn-cpp/knncpp.h>
+#include <chrono>
 
 namespace modules {
 	int closestPointIndex(
@@ -81,6 +82,8 @@ namespace modules {
 		const double maxRadius,
 		const std::vector<Vector3>& meshPoints
 	) {
+		auto kdTreeStart = std::chrono::high_resolution_clock::now();
+
 		std::vector<Vector3> allpoints = nodes;
 		std::cout << "Number of nodes: " << nodes.size() << std::endl;
 		allpoints.insert(allpoints.end(), meshPoints.begin(), meshPoints.end());
@@ -94,6 +97,8 @@ namespace modules {
 		knncpp::KDTreeMinkowskiX<double, knncpp::EuclideanDistance<double>> kdtree(_V);
 		kdtree.build();
 
+		auto kdTreeEnd = std::chrono::high_resolution_clock::now();
+
 		std::vector<std::vector<Vector3>> nodeMedialAxis(nodes.size());
 
 		#pragma omp parallel for
@@ -104,14 +109,20 @@ namespace modules {
 			Vector3 b = nodeBitangents[i];
 			Vector3 x = nodes[i];
 
-			double r_min_minus = std::numeric_limits<double>::infinity();
-			double r_min_plus = std::numeric_limits<double>::infinity();
+			double r_min_minus_b = std::numeric_limits<double>::infinity();
+			double r_min_plus_b = std::numeric_limits<double>::infinity();
+			double r_min_minus_n = std::numeric_limits<double>::infinity();
+			double r_min_plus_n = std::numeric_limits<double>::infinity();
 
-			r_min_plus = std::min(maximumBallRadius(x, b, i, maxRadius, allpoints, kdtree), maxRadius);
-			r_min_minus = std::min(maximumBallRadius(x, -b, i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_plus_b = std::min(maximumBallRadius(x, b, i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_minus_b = std::min(maximumBallRadius(x, -b, i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_plus_n = std::min(maximumBallRadius(x, n, i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_minus_n = std::min(maximumBallRadius(x, -n, i, maxRadius, allpoints, kdtree), maxRadius);
 
-			nodeMedialAxis[i].emplace_back(nodes[i] - r_min_minus * b);
-			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus * b);
+			nodeMedialAxis[i].emplace_back(nodes[i] - r_min_minus_b * b);
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus_b * b);
+			nodeMedialAxis[i].emplace_back(nodes[i] - r_min_minus_n * n);
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus_n * n);
 		}
 
 		return nodeMedialAxis;

@@ -139,6 +139,9 @@ namespace modules {
 				exit(1);
             }
         }
+        else if (key == "visualize_volume") {
+			scene.visualizeVolume = parts.size() < 2 || (parts[1] == "true");
+		}
 
         else if (key == "timestep") {
             scene.timestep = stod(parts[1]);

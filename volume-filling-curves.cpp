@@ -137,6 +137,8 @@ int main(int argc, char **argv) {
     }
 
     polyscope::init();
+	polyscope::options::groundPlaneMode = polyscope::GroundPlaneMode::ShadowOnly;
+
     polyscope::state::userCallback = polyscopeCallback;
     scene = modules::read_scene(args::get(inputFilename));
 
@@ -145,12 +147,40 @@ int main(int argc, char **argv) {
     }
 
     if (scene.volume.volumeType == scene_file::VolumeType::MESH) {
-		std::cout << "Using mesh volume" << std::endl;
+        std::cout << "Initializing OpenVDB" << std::endl;
+        openvdb::initialize();
+
+        std::cout << "Reading surface mesh" << std::endl;
+        modules::PolyscopeMeshData polyscopeMesh = modules::file_to_polyscope_data(scene.volume.mesh_filename);
+        std::cout << "Mesh data created with " << polyscopeMesh.vertices.size() << " vertices and "
+            << polyscopeMesh.faces.size() << " faces." << std::endl;
+
+		// visualize volume as mesh, if requested
+		// note that this can be very slow for large meshes
+        if (scene.visualizeVolume) {
+            std::cout << "Registering polyscope mesh" << std::endl;
+            polyscope::registerSurfaceMesh("mesh", polyscopeMesh.vertices, polyscopeMesh.faces)
+                ->setTransparency(0.25f)
+                ->setEnabled(true);
+            std::cout << "Registered polyscope mesh" << std::endl;
+        }
+
+
         if (scene.volume.convert_to_sdf) {
             // Use openvdb to convert mesh to SDF
-            auto sdf = modules::mesh_to_sdf(
-                scene.volume.mesh_filename, scene.volume.mesh_voxelsize
-            );
+            std::cout << "Converting Polyscope mesh data to OpenVDB format" << std::endl;
+			modules::OpenVDBMeshData openvdbMesh = modules::polyscope_to_openvdb_data(polyscopeMesh);
+            std::cout << "Converted mesh data with " << openvdbMesh.vertices.size() << " vertices and "
+                << openvdbMesh.faces.size() << " faces." << std::endl;
+
+            std::cout << "Generating SDF" << std::endl;
+			openvdb::FloatGrid::Ptr sdf = modules::openvdb_mesh_to_sdf(openvdbMesh, scene.volume.mesh_voxelsize);
+            std::cout << "SDF grid created with " << sdf->activeVoxelCount() << " active voxels." << std::endl;
+
+			if (!modules::sdf_is_watertight(sdf)) {
+				std::cerr << "SDF is not watertight, aborting." << std::endl;
+				return EXIT_FAILURE;
+			}
 
             if (!sdf) {
                 std::cerr << "Error converting mesh to SDF" << std::endl;
@@ -184,12 +214,7 @@ int main(int argc, char **argv) {
             scene.volume.sdf = sdf;
         }
         else {
-			auto mesh_points = modules::mesh_to_nodes(scene.volume.mesh_filename);
-		    scene.volume.mesh_points = mesh_points;
-
-            // visualize points
-			polyscope::registerPointCloud("mesh points", mesh_points)
-				->setEnabled(true);
+            scene.volume.mesh_points = polyscopeMesh.vertices;
         }
 
         // ToDo: Initialize nodes relative to loaded volume?
