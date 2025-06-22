@@ -15,8 +15,8 @@ namespace modules {
     namespace scene_file {
 		enum VolumeType {
 			PRIMITIVE, // Primitive surface (e.g., sphere, box)
-			SDF, // Signed distance field surface
-			MESH // Mesh surface
+			SDF, // Signed distance field surface (currently not supported)
+			MESH // Mesh surface (either to be treated as SDF or as nodes that impact the Medial Axis Energy)
 		};
 
         enum PrimitiveType {
@@ -36,7 +36,8 @@ namespace modules {
             // Mesh params
 			std::string mesh_filename = "";
             bool convert_to_sdf;
-            double mesh_voxelsize = 0.01f;
+            double mesh_to_sdf_voxelsize = 0.01f;
+            float mesh_to_sdf_halfwidth = 3.0f;
 			std::vector<Vector3> mesh_points = {}; // initialized through code
             openvdb::FloatGrid::Ptr sdf; // initialized through code
         };

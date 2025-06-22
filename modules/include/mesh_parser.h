@@ -21,7 +21,7 @@ namespace modules {
 
 	PolyscopeMeshData file_to_polyscope_data(std::string filename);
 	OpenVDBMeshData polyscope_to_openvdb_data(PolyscopeMeshData polyscopeMesh);
-	openvdb::FloatGrid::Ptr openvdb_mesh_to_sdf(OpenVDBMeshData openvdbMesh, double voxelsize);
+	openvdb::FloatGrid::Ptr openvdb_mesh_to_sdf(OpenVDBMeshData openvdbMesh, double voxelsize, float halfwidth);
 	bool sdf_is_watertight(openvdb::FloatGrid::Ptr sdfGrid);
 	bool mesh_is_watertight(std::unique_ptr<SurfaceMesh>* mesh);
 }

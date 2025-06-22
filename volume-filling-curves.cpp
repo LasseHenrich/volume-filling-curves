@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
                 << openvdbMesh.faces.size() << " faces." << std::endl;
 
             std::cout << "Generating SDF" << std::endl;
-			openvdb::FloatGrid::Ptr sdf = modules::openvdb_mesh_to_sdf(openvdbMesh, scene.volume.mesh_voxelsize);
+			openvdb::FloatGrid::Ptr sdf = modules::openvdb_mesh_to_sdf(openvdbMesh, scene.volume.mesh_to_sdf_voxelsize, scene.volume.mesh_to_sdf_halfwidth);
             std::cout << "SDF grid created with " << sdf->activeVoxelCount() << " active voxels." << std::endl;
 
 			if (!modules::sdf_is_watertight(sdf)) {

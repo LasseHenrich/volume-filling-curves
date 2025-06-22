@@ -131,8 +131,12 @@ namespace modules {
                 }
 
                 if (parts.size() > 4 && scene.volume.convert_to_sdf) {
-                    scene.volume.mesh_voxelsize = stod(parts[4]);
+                    scene.volume.mesh_to_sdf_voxelsize = stod(parts[4]);
                 }
+
+				if (parts.size() > 5 && scene.volume.convert_to_sdf) {
+					scene.volume.mesh_to_sdf_halfwidth = stod(parts[5]);
+				}
 			}
 			else {
 				cerr << "Error: unknown surface type '" << parts[1] << "'" << endl;

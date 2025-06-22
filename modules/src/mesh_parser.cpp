@@ -57,7 +57,7 @@ namespace modules {
 		return openvdbMesh;
 	}
 
-	openvdb::FloatGrid::Ptr openvdb_mesh_to_sdf(OpenVDBMeshData openvdbMesh, double voxelsize) {
+	openvdb::FloatGrid::Ptr openvdb_mesh_to_sdf(OpenVDBMeshData openvdbMesh, double voxelsize, float halfwidth) {
 		auto points = openvdbMesh.vertices;
 		auto triangles = openvdbMesh.faces;
 
@@ -65,7 +65,7 @@ namespace modules {
             openvdb::math::Transform::createLinearTransform(voxelsize);
 
         openvdb::FloatGrid::Ptr sdfGrid =
-            openvdb::tools::meshToLevelSet<openvdb::FloatGrid>(*transform, points, triangles);
+            openvdb::tools::meshToLevelSet<openvdb::FloatGrid>(*transform, points, triangles, halfwidth);
 
 		return sdfGrid;
 	}
