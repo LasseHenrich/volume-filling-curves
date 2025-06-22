@@ -111,18 +111,55 @@ namespace modules {
 
 			double r_min_minus_b = std::numeric_limits<double>::infinity();
 			double r_min_plus_b = std::numeric_limits<double>::infinity();
-			double r_min_minus_n = std::numeric_limits<double>::infinity();
+			/*double r_min_minus_n = std::numeric_limits<double>::infinity();
 			double r_min_plus_n = std::numeric_limits<double>::infinity();
+			double r_min_minus_b_minus_n = std::numeric_limits<double>::infinity();
+			double r_min_plus_b_minus_n = std::numeric_limits<double>::infinity();
+			double r_min_minus_b_plus_n = std::numeric_limits<double>::infinity();
+			double r_min_plus_b_plus_n = std::numeric_limits<double>::infinity();
+			double r_min_minus_b_minus_b_minus_b_minus_n = std::numeric_limits<double>::infinity();
+			double r_min_minus_b_minus_n_minus_n_minus_n = std::numeric_limits<double>::infinity();
+			double r_min_plus_b_minus_n_minus_n_minus_n = std::numeric_limits<double>::infinity();
+			double r_min_plus_b_plus_b_plus_b_minus_n = std::numeric_limits<double>::infinity();
+			double r_min_plus_b_plus_b_plus_b_plus_n = std::numeric_limits<double>::infinity();
+			double r_min_plus_b_plus_n_plus_n_plus_n = std::numeric_limits<double>::infinity();
+			double r_min_minus_b_plus_n_plus_n_plus_n = std::numeric_limits<double>::infinity();
+			double r_min_minus_b_minus_b_minus_b_plus_n = std::numeric_limits<double>::infinity();*/
+
 
 			r_min_plus_b = std::min(maximumBallRadius(x, b, i, maxRadius, allpoints, kdtree), maxRadius);
 			r_min_minus_b = std::min(maximumBallRadius(x, -b, i, maxRadius, allpoints, kdtree), maxRadius);
-			r_min_plus_n = std::min(maximumBallRadius(x, n, i, maxRadius, allpoints, kdtree), maxRadius);
+			/*r_min_plus_n = std::min(maximumBallRadius(x, n, i, maxRadius, allpoints, kdtree), maxRadius);
 			r_min_minus_n = std::min(maximumBallRadius(x, -n, i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_minus_b_minus_n = std::min(maximumBallRadius(x, normalize(-b - n), i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_plus_b_minus_n = std::min(maximumBallRadius(x, normalize(b - n), i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_minus_b_plus_n = std::min(maximumBallRadius(x, normalize(-b + n), i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_plus_b_plus_n = std::min(maximumBallRadius(x, normalize(b + n), i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_minus_b_minus_b_minus_b_minus_n = std::min(maximumBallRadius(x, normalize(-b - b - b - n), i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_minus_b_minus_n_minus_n_minus_n = std::min(maximumBallRadius(x, normalize(-b - n - n - n), i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_plus_b_minus_n_minus_n_minus_n = std::min(maximumBallRadius(x, normalize(b - n - n - n), i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_plus_b_plus_b_plus_b_minus_n = std::min(maximumBallRadius(x, normalize(b + b + b - n), i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_plus_b_plus_b_plus_b_plus_n = std::min(maximumBallRadius(x, normalize(b + b + b + n), i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_plus_b_plus_n_plus_n_plus_n = std::min(maximumBallRadius(x, normalize(b + n + n + n), i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_minus_b_plus_n_plus_n_plus_n = std::min(maximumBallRadius(x, normalize(-b + n + n + n), i, maxRadius, allpoints, kdtree), maxRadius);
+			r_min_minus_b_minus_b_minus_b_plus_n = std::min(maximumBallRadius(x, normalize(-b - b - b + n), i, maxRadius, allpoints, kdtree), maxRadius);*/
 
-			nodeMedialAxis[i].emplace_back(nodes[i] - r_min_minus_b * b);
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_minus_b * -b);
 			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus_b * b);
-			nodeMedialAxis[i].emplace_back(nodes[i] - r_min_minus_n * n);
+			/*nodeMedialAxis[i].emplace_back(nodes[i] + r_min_minus_n * -n);
 			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus_n * n);
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_minus_b_minus_n * normalize(-b - n));
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus_b_minus_n * normalize(b - n));
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_minus_b_plus_n * normalize(-b + n));
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus_b_plus_n * normalize(b + n));
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_minus_b_minus_b_minus_b_minus_n * normalize(-b - b - b - n));
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_minus_b_minus_n_minus_n_minus_n * normalize(-b - n - n - n));
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus_b_minus_n_minus_n_minus_n * normalize(b - n - n - n));
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus_b_plus_b_plus_b_minus_n * normalize(b + b + b - n));
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus_b_plus_b_plus_b_plus_n * normalize(b + b + b + n));
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus_b_plus_n_plus_n_plus_n * normalize(b + n + n + n));
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_minus_b_plus_n_plus_n_plus_n * normalize(-b + n + n + n));
+			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_minus_b_minus_b_minus_b_plus_n * normalize(-b - b - b + n));*/
 		}
 
 		return nodeMedialAxis;

@@ -107,7 +107,7 @@ void polyscopeCallback() {
         doWork();
     }
 
-    if (iteration % 100 == 0) {
+    if (iteration % 200 == 0) {
         runLoop = false;
     }
 }

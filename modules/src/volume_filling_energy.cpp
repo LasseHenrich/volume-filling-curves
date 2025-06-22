@@ -213,21 +213,74 @@ namespace modules {
 
 			auto _c_0 = nodeMedialAxis[nodeId][0];
 			auto _c_1 = nodeMedialAxis[nodeId][1];
-			auto _c_2 = nodeMedialAxis[nodeId][2];
+			/*auto _c_2 = nodeMedialAxis[nodeId][2];
 			auto _c_3 = nodeMedialAxis[nodeId][3];
+			auto _c_4 = nodeMedialAxis[nodeId][4];
+			auto _c_5 = nodeMedialAxis[nodeId][5];
+			auto _c_6 = nodeMedialAxis[nodeId][6];
+			auto _c_7 = nodeMedialAxis[nodeId][7];
+			auto _c_8 = nodeMedialAxis[nodeId][8];
+			auto _c_9 = nodeMedialAxis[nodeId][9];
+			auto _c_10 = nodeMedialAxis[nodeId][10];
+			auto _c_11 = nodeMedialAxis[nodeId][11];
+			auto _c_12 = nodeMedialAxis[nodeId][12];
+			auto _c_13 = nodeMedialAxis[nodeId][13];
+			auto _c_14 = nodeMedialAxis[nodeId][14];
+			auto _c_15 = nodeMedialAxis[nodeId][15];*/
 
 			Eigen::Vector3d c_0(_c_0.x, _c_0.y, _c_0.z);
 			Eigen::Vector3d c_1(_c_1.x, _c_1.y, _c_1.z);
-			Eigen::Vector3d c_2(_c_2.x, _c_2.y, _c_2.z);
+			/*Eigen::Vector3d c_2(_c_2.x, _c_2.y, _c_2.z);
 			Eigen::Vector3d c_3(_c_3.x, _c_3.y, _c_3.z);
+			Eigen::Vector3d c_4(_c_4.x, _c_4.y, _c_4.z);
+			Eigen::Vector3d c_5(_c_5.x, _c_5.y, _c_5.z);
+			Eigen::Vector3d c_6(_c_6.x, _c_6.y, _c_6.z);
+			Eigen::Vector3d c_7(_c_7.x, _c_7.y, _c_7.z);
+			Eigen::Vector3d c_8(_c_8.x, _c_8.y, _c_8.z);
+			Eigen::Vector3d c_9(_c_9.x, _c_9.y, _c_9.z);
+			Eigen::Vector3d c_10(_c_10.x, _c_10.y, _c_10.z);
+			Eigen::Vector3d c_11(_c_11.x, _c_11.y, _c_11.z);
+			Eigen::Vector3d c_12(_c_12.x, _c_12.y, _c_12.z);
+			Eigen::Vector3d c_13(_c_13.x, _c_13.y, _c_13.z);
+			Eigen::Vector3d c_14(_c_14.x, _c_14.y, _c_14.z);
+			Eigen::Vector3d c_15(_c_15.x, _c_15.y, _c_15.z);*/
 
 			T l_0 = (element.variables(nodeId) - c_0).norm();
 			T l_1 = (element.variables(nodeId) - c_1).norm();
-			T l_2 = (element.variables(nodeId) - c_2).norm();
+			/*T l_2 = (element.variables(nodeId) - c_2).norm();
 			T l_3 = (element.variables(nodeId) - c_3).norm();
+			T l_4 = (element.variables(nodeId) - c_4).norm();
+			T l_5 = (element.variables(nodeId) - c_5).norm();
+			T l_6 = (element.variables(nodeId) - c_6).norm();
+			T l_7 = (element.variables(nodeId) - c_7).norm();
+			T l_8 = (element.variables(nodeId) - c_8).norm();
+			T l_9 = (element.variables(nodeId) - c_9).norm();
+			T l_10 = (element.variables(nodeId) - c_10).norm();
+			T l_11 = (element.variables(nodeId) - c_11).norm();
+			T l_12 = (element.variables(nodeId) - c_12).norm();
+			T l_13 = (element.variables(nodeId) - c_13).norm();
+			T l_14 = (element.variables(nodeId) - c_14).norm();
+			T l_15 = (element.variables(nodeId) - c_15).norm();*/
 
 			auto result = alpha * nodeWeight[nodeId] * (
-				pow(pow(l_0, 2) + pow(l_1, 2), q / 2)
+				pow(
+					pow(l_0, 2) +
+					pow(l_1, 2)/* +
+					pow(l_2, 2) +
+					pow(l_3, 2) +
+					pow(l_4, 2) +
+					pow(l_5, 2) +
+					pow(l_6, 2) +
+					pow(l_7, 2) +
+					pow(l_8, 2) +
+					pow(l_9, 2) +
+					pow(l_10, 2) +
+					pow(l_11, 2) +
+					pow(l_12, 2) +
+					pow(l_13, 2) +
+					pow(l_14, 2) +
+					pow(l_15, 2)*/,
+				q / 2)
 				) / totalCurveLength;
 
 			//totalMedialAxisEnergy += result;
@@ -395,7 +448,7 @@ namespace modules {
 			std::cerr << "SDF volume type not implemented yet." << std::endl;
 		}
 		else {
-			std::cerr << "Unknown volume type." << std::endl;
+			std::cerr << "Unknown volume type or no volume" << std::endl;
 		}
 
 
