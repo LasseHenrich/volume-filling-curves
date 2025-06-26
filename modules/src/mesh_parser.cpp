@@ -3,15 +3,16 @@
 #include <openvdb/tools/MeshToVolume.h>
 
 namespace modules {
-	PolyscopeMeshData file_to_polyscope_data(std::string filename) {
+	GeometryCentralMeshData file_to_geometrycentral_data(std::string filename) {
 		std::unique_ptr<SurfaceMesh> mesh;
 		std::unique_ptr<VertexPositionGeometry> geometry;
 		std::tie(mesh, geometry) = readSurfaceMesh(filename);
+		return GeometryCentralMeshData{ std::move(mesh), std::move(geometry) };
+	}
 
-		if (!mesh || !geometry) {
-			std::cerr << "Error reading mesh from file: " << filename << std::endl;
-			std::abort();
-		}
+	PolyscopeMeshData geometrycentral_to_polyscope_data(GeometryCentralMeshData const *geometrycentralMeshData) {
+		auto mesh = geometrycentralMeshData->mesh.get();
+		auto geometry = geometrycentralMeshData->geometry.get();
 
 		std::vector<Vector3> vertices;
 		std::cout << "Loading vertices" << std::endl;
@@ -43,23 +44,23 @@ namespace modules {
 		return meshData;
 	}
 
-	OpenVDBMeshData polyscope_to_openvdb_data(PolyscopeMeshData polyscopeMesh) {
+	OpenVDBMeshData polyscope_to_openvdb_data(PolyscopeMeshData const* polyscopeMeshData) {
 		OpenVDBMeshData openvdbMesh;
-		openvdbMesh.vertices.reserve(polyscopeMesh.vertices.size());
-		openvdbMesh.faces.reserve(polyscopeMesh.faces.size());
-		for (const auto& vertex : polyscopeMesh.vertices) {
+		openvdbMesh.vertices.reserve(polyscopeMeshData->vertices.size());
+		openvdbMesh.faces.reserve(polyscopeMeshData->faces.size());
+		for (const auto& vertex : polyscopeMeshData->vertices) {
 			openvdbMesh.vertices.emplace_back(openvdb::Vec3s(vertex.x, vertex.y, vertex.z));
 		}
-		for (const auto& face : polyscopeMesh.faces) {
+		for (const auto& face : polyscopeMeshData->faces) {
 			openvdbMesh.faces.emplace_back(
 				openvdb::Vec3I(face[0], face[1], face[2]));
 		}
 		return openvdbMesh;
 	}
 
-	openvdb::FloatGrid::Ptr openvdb_mesh_to_sdf(OpenVDBMeshData openvdbMesh, double voxelsize, float halfwidth) {
-		auto points = openvdbMesh.vertices;
-		auto triangles = openvdbMesh.faces;
+	openvdb::FloatGrid::Ptr openvdb_mesh_to_sdf(OpenVDBMeshData const* openvdbMeshData, double voxelsize, float halfwidth) {
+		auto points = openvdbMeshData->vertices;
+		auto triangles = openvdbMeshData->faces;
 
         openvdb::math::Transform::Ptr transform =
             openvdb::math::Transform::createLinearTransform(voxelsize);
@@ -90,8 +91,8 @@ namespace modules {
 		return true;
 	}
 
-	// doesn't work correctly right now
-	bool mesh_is_watertight(std::unique_ptr<SurfaceMesh>* mesh) {
+	bool mesh_is_manifold(std::unique_ptr<SurfaceMesh>* mesh) {
+		/*
 		for (Edge e : (*mesh)->edges()) {
 			if (e.isBoundary()) {
 				std::cout << "Mesh is not watertight: found boundary edge." << std::endl;
@@ -113,6 +114,15 @@ namespace modules {
 		for (Vertex v : (*mesh)->vertices()) {
 			if (v.degree() == 0) {
 				std::cout << "Mesh is not watertight: vertex " << v.getIndex() << " has degree 0." << std::endl;
+				return false;
+			}
+		}
+
+		*/
+
+		for (Edge e : (*mesh)->edges()) {
+			if (e.degree() != 2) {
+				std::cout << "Mesh is not watertight: edge " << e.getIndex() << " has degree " << e.degree() << "." << std::endl;
 				return false;
 			}
 		}

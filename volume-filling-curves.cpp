@@ -151,7 +151,12 @@ int main(int argc, char **argv) {
         openvdb::initialize();
 
         std::cout << "Reading surface mesh" << std::endl;
-        modules::PolyscopeMeshData polyscopeMesh = modules::file_to_polyscope_data(scene.volume.mesh_filename);
+		modules::GeometryCentralMeshData geometrycentralMeshData = modules::file_to_geometrycentral_data(scene.volume.mesh_filename);
+		std::cout << "Surface mesh read with " << geometrycentralMeshData.mesh->nVertices() << " vertices and "
+			<< geometrycentralMeshData.mesh->nFaces() << " faces." << std::endl;
+
+		std::cout << "Converting to Polyscope mesh data" << std::endl;
+		modules::PolyscopeMeshData polyscopeMesh = modules::geometrycentral_to_polyscope_data(&geometrycentralMeshData);
         std::cout << "Mesh data created with " << polyscopeMesh.vertices.size() << " vertices and "
             << polyscopeMesh.faces.size() << " faces." << std::endl;
 
@@ -169,12 +174,17 @@ int main(int argc, char **argv) {
         if (scene.volume.convert_to_sdf) {
             // Use openvdb to convert mesh to SDF
             std::cout << "Converting Polyscope mesh data to OpenVDB format" << std::endl;
-			modules::OpenVDBMeshData openvdbMesh = modules::polyscope_to_openvdb_data(polyscopeMesh);
+			modules::OpenVDBMeshData openvdbMesh = modules::polyscope_to_openvdb_data(&polyscopeMesh);
             std::cout << "Converted mesh data with " << openvdbMesh.vertices.size() << " vertices and "
                 << openvdbMesh.faces.size() << " faces." << std::endl;
 
+			if (!modules::mesh_is_manifold(&geometrycentralMeshData.mesh)) {
+				std::cerr << "Mesh is not watertight, aborting." << std::endl;
+				return EXIT_FAILURE;
+			}
+
             std::cout << "Generating SDF" << std::endl;
-			openvdb::FloatGrid::Ptr sdf = modules::openvdb_mesh_to_sdf(openvdbMesh, scene.volume.mesh_to_sdf_voxelsize, scene.volume.mesh_to_sdf_halfwidth);
+			openvdb::FloatGrid::Ptr sdf = modules::openvdb_mesh_to_sdf(&openvdbMesh, scene.volume.mesh_to_sdf_voxelsize, scene.volume.mesh_to_sdf_halfwidth);
             std::cout << "SDF grid created with " << sdf->activeVoxelCount() << " active voxels." << std::endl;
 
 			if (!modules::sdf_is_watertight(sdf)) {

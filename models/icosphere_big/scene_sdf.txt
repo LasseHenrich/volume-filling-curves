@@ -1,0 +1,5 @@
+volume mesh icosphere.ply true 2 2.0
+radius 2
+rmax 3
+h 0.2
+visualize_volume
