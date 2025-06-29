@@ -13,23 +13,104 @@
 
 namespace modules {
 	template<typename T>
-	T max(T a, T b) {
-		return (a > b) ? a : b;
-	}
-
-	template<typename T>
 	T min(T a, T b) {
 		return (a < b) ? a : b;
 	}
 
-	template<typename T>
-	T clamp(T val, T min_val, T max_val) {
-		if (val < min_val) return min_val;
-		if (val > max_val) return max_val;
-		return val;
-	}
-
 	const double branchRatio = std::sqrt(std::sqrt(2));
+
+	template<typename Element>
+	auto calculate_medial_axis_sdf_energy(
+		Element& element,
+		const std::vector<std::vector<Vector3>>& nodeMedialAxis,
+		const scene_file::SceneObject& options,
+		openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler>& sampler,
+		double radius,
+		double maxRadius,
+		double alpha,
+		const std::vector<double>& nodeWeight,
+		double q,
+		double totalCurveLength) -> TINYAD_SCALAR_TYPE(element)
+	{
+		using T = TINYAD_SCALAR_TYPE(element);
+		int nodeId = element.handle;
+		Eigen::Vector3<T> pos = element.variables(nodeId);
+
+		auto _c_0 = nodeMedialAxis[nodeId][0];
+		auto _c_1 = nodeMedialAxis[nodeId][1];
+
+		Eigen::Vector3d c_0(_c_0.x, _c_0.y, _c_0.z);
+		Eigen::Vector3d c_1(_c_1.x, _c_1.y, _c_1.z);
+
+		T l_0 = (pos - c_0).norm();
+		T l_1 = (pos - c_1).norm();
+
+
+		if (options.volume.volumeType == scene_file::VolumeType::MESH && options.volume.convert_to_sdf) {
+			// Get current passive position for sampling
+			openvdb::Vec3d world_pos(TinyAD::to_passive(pos(0)),
+				TinyAD::to_passive(pos(1)),
+				TinyAD::to_passive(pos(2)));
+
+			// Sample SDF value at current position
+			double sdf_value = sampler.wsSample(world_pos);
+
+			// Compute gradient using finite differences with error checking
+			const double h = 1e-1;
+			double sdf_px = sampler.wsSample(world_pos + openvdb::Vec3d(h, 0, 0));
+			double sdf_mx = sampler.wsSample(world_pos - openvdb::Vec3d(h, 0, 0));
+			double sdf_py = sampler.wsSample(world_pos + openvdb::Vec3d(0, h, 0));
+			double sdf_my = sampler.wsSample(world_pos - openvdb::Vec3d(0, h, 0));
+			double sdf_pz = sampler.wsSample(world_pos + openvdb::Vec3d(0, 0, h));
+			double sdf_mz = sampler.wsSample(world_pos - openvdb::Vec3d(0, 0, h));
+
+			double grad_x = (sdf_px - sdf_mx) / (2.0 * h);
+			double grad_y = (sdf_py - sdf_my) / (2.0 * h);
+			double grad_z = (sdf_pz - sdf_mz) / (2.0 * h);
+
+			// Create differentiable SDF using linear approximation
+			/*T sdf_approx_at_node = T(sdf_value) +
+				T(grad_x) * (pos(0) - T(world_pos[0])) +
+				T(grad_y) * (pos(1) - T(world_pos[1])) +
+				T(grad_z) * (pos(2) - T(world_pos[2]));*/
+
+			// we don't just wsSample at c_0 and c_1, as this would be insensitive
+			// to "jumping" across very tight surface regions.
+			// Instead, we use the local gradient to approximate the SDF at c_0 and c_1,
+			// assuming a linear gradient field around the current position.
+			// (Also, TinyAD needs a notion of a gradient, which is why would need to
+			// compute it anyway.)
+			T sdf_approx_at_c_0 = T(sdf_value) +
+				T(grad_x) * (c_0(0) - T(world_pos[0])) +
+				T(grad_y) * (c_0(1) - T(world_pos[1])) +
+				T(grad_z) * (c_0(2) - T(world_pos[2]));
+
+			T sdf_approx_at_c_1 = T(sdf_value) +
+				T(grad_x) * (c_1(0) - T(world_pos[0])) +
+				T(grad_y) * (c_1(1) - T(world_pos[1])) +
+				T(grad_z) * (c_1(2) - T(world_pos[2]));
+
+			// backproject... note that I'm not sure whether this is the
+			// correct way to backproject
+			T overshoot_0 = sdf_approx_at_c_0 - radius;
+			if (overshoot_0 > 0) {
+				l_0 = min(l_0 - overshoot_0, (T)maxRadius);
+			}
+			T overshoot_1 = sdf_approx_at_c_1 - radius;
+			if (overshoot_1 > 0) {
+				l_1 = min(l_1 - overshoot_1, (T)maxRadius);
+			}
+		}
+
+		auto result = alpha * nodeWeight[nodeId] * (
+			pow(
+				pow(l_0, 2) +
+				pow(l_1, 2),
+			q / 2)
+			) / totalCurveLength;
+
+		return result;
+	}
 
 	std::tuple<
 		std::vector<Vector3>, // descent direction
@@ -225,87 +306,19 @@ namespace modules {
 		// note that with our current setup we just have one uniform alpha
 		double totalMedialAxisEnergy = 0;
 		openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler> sampler(*options.volume.sdf);
-		func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
-			using T = TINYAD_SCALAR_TYPE(element);
-			int nodeId = element.handle;
-			Eigen::Vector3<T> pos = element.variables(nodeId);
-
-			auto _c_0 = nodeMedialAxis[nodeId][0];
-			auto _c_1 = nodeMedialAxis[nodeId][1];
-
-			Eigen::Vector3d c_0(_c_0.x, _c_0.y, _c_0.z);
-			Eigen::Vector3d c_1(_c_1.x, _c_1.y, _c_1.z);
-
-			T l_0 = (pos - c_0).norm();
-			T l_1 = (pos - c_1).norm();
-
-
-			if (options.volume.volumeType == scene_file::VolumeType::MESH && options.volume.convert_to_sdf) {
-				// Get current passive position for sampling
-				openvdb::Vec3d world_pos(TinyAD::to_passive(pos(0)),
-					TinyAD::to_passive(pos(1)),
-					TinyAD::to_passive(pos(2)));
-
-				// Sample SDF value at current position
-				double sdf_value = sampler.wsSample(world_pos);
-
-				// Compute gradient using finite differences with error checking
-				const double h = 1e-1;
-				double sdf_px = sampler.wsSample(world_pos + openvdb::Vec3d(h, 0, 0));
-				double sdf_mx = sampler.wsSample(world_pos - openvdb::Vec3d(h, 0, 0));
-				double sdf_py = sampler.wsSample(world_pos + openvdb::Vec3d(0, h, 0));
-				double sdf_my = sampler.wsSample(world_pos - openvdb::Vec3d(0, h, 0));
-				double sdf_pz = sampler.wsSample(world_pos + openvdb::Vec3d(0, 0, h));
-				double sdf_mz = sampler.wsSample(world_pos - openvdb::Vec3d(0, 0, h));
-
-				double grad_x = (sdf_px - sdf_mx) / (2.0 * h);
-				double grad_y = (sdf_py - sdf_my) / (2.0 * h);
-				double grad_z = (sdf_pz - sdf_mz) / (2.0 * h);
-
-				// Create differentiable SDF using linear approximation
-				T sdf_approx_at_node = T(sdf_value) +
-					T(grad_x) * (pos(0) - T(world_pos[0])) +
-					T(grad_y) * (pos(1) - T(world_pos[1])) +
-					T(grad_z) * (pos(2) - T(world_pos[2]));
-
-				// we don't just wsSample at c_0 and c_1, as this would be insensitive
-				// to "jumping" across very tight surface regions.
-				// Instead, we use the local gradient to approximate the SDF at c_0 and c_1,
-				// assuming a linear gradient field around the current position.
-				// (Also, TinyAD needs a notion of a gradient, which is why would need to
-				// compute it anyway.)
-				T sdf_approx_at_c_0 = T(sdf_value) +
-					T(grad_x) * (c_0(0) - T(world_pos[0])) +
-					T(grad_y) * (c_0(1) - T(world_pos[1])) +
-					T(grad_z) * (c_0(2) - T(world_pos[2]));
-
-				T sdf_approx_at_c_1 = T(sdf_value) +
-					T(grad_x) * (c_1(0) - T(world_pos[0])) +
-					T(grad_y) * (c_1(1) - T(world_pos[1])) +
-					T(grad_z) * (c_1(2) - T(world_pos[2]));
-
-				T overshoot_0 = sdf_approx_at_c_0 - radius;
-				if (overshoot_0 > 0) {
-					// backproject l_0 to where SDF is radius again, based on change in SDF towards c_0
-					l_0 = min(l_0 - overshoot_0, maxRadius);
-				}
-				T overshoot_1 = sdf_approx_at_c_1 - radius;
-				if (overshoot_1 > 0) {
-					// backproject l_1 to where SDF is radius again, based on change in SDF towards c_1
-					l_1 = min(l_1 - overshoot_1, maxRadius);
-				}
-			}
-
-			auto result = alpha * nodeWeight[nodeId] * (
-				pow(
-					pow(l_0, 2) +
-					pow(l_1, 2),
-				q / 2)
-				) / totalCurveLength;
-
-			//totalMedialAxisEnergy += result;
-
-			return result;
+		func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element) -> TINYAD_SCALAR_TYPE(element) {
+			return calculate_medial_axis_sdf_energy(
+				element,
+				nodeMedialAxis,
+				options,
+				sampler,
+				radius,
+				maxRadius,
+				alpha,
+				nodeWeight,
+				q,
+				totalCurveLength
+			);
 		});
 
 		std::cout << "Total Medial Axis Energy: " << totalMedialAxisEnergy << std::endl;
