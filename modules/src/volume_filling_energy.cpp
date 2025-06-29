@@ -12,6 +12,21 @@
 #include <openvdb/tools/GridOperators.h>
 
 namespace modules {
+	template<typename T>
+	T max(T a, T b) {
+		return (a > b) ? a : b;
+	}
+
+	template<typename T>
+	T min(T a, T b) {
+		return (a < b) ? a : b;
+	}
+
+	template<typename T>
+	T clamp(T val, T min, T max) {
+		return std::max(min, std::min(val, max));
+	}
+
 	const double branchRatio = std::sqrt(std::sqrt(2));
 
 	std::tuple<
@@ -70,7 +85,7 @@ namespace modules {
 			Vector3 b;
 			Vector3 n;
 
-			if (true) { // 3D
+			if (false) { // 3D
 				Vector3 t_prev, t_next;
 				if (i == 0) {
 					t_prev = segmentTangents[segments.size() - 1];
@@ -354,10 +369,6 @@ namespace modules {
 				// Sample SDF value at current position
 				double sdf_value = sampler.wsSample(world_pos);
 
-				if (sdf_value <= 0.0) {
-					return T(0.0);
-				}
-
 				// Compute gradient using finite differences with error checking
 				const double h = 1e-1;
 				double sdf_px = sampler.wsSample(world_pos + openvdb::Vec3d(h, 0, 0));
@@ -377,7 +388,14 @@ namespace modules {
 					T(grad_y) * (pos(1) - T(world_pos[1])) +
 					T(grad_z) * (pos(2) - T(world_pos[2]));
 
-				auto result = T(1000) * sdf_approx * sdf_approx / T(totalCurveLength);
+				// The energy is designed to counteract the medial axis energy.
+				// It is zero when the node is at a distance of maxRadius from the boundary,
+				// and it increases as the node gets closer to the boundary.
+				T radiusDiff = maxRadius - radius;
+				T l = max(radiusDiff + sdf_approx, T(0));
+				// radiusDiff when point is on boundary, 0 when inside volume and maxRadius-radius away from boundary
+
+				auto result = alpha * nodeWeight[nodeId] * pow(l, q) / T(totalCurveLength);
 
 				//totalSdfEnergy += result;
 
