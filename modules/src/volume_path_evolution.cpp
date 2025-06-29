@@ -16,17 +16,15 @@ namespace modules {
 		std::vector<Vector3>, // nodes
 		std::vector<std::array<int, 2>>, // segments
 		std::vector<double> // segment lengths
-	> volume_path_evolution(
-		const std::vector<Vector3>& nodes,
-		const std::vector<std::array<int, 2>>& segments,
-		const std::vector<double>& segmentLengths,
+	> volume_path_evolution_curve(
+		const Curve& curve_in,
 		const double h,
 		const std::vector<Vector3>& descentDirections,
 		const scene_file::SceneObject& options
 	) {
-		auto newNodes = nodes;
-		auto newSegments = segments;
-		auto newSegmentLengths = segmentLengths;
+		auto newNodes = curve_in.nodes;
+		auto newSegments = curve_in.segments;
+		auto newSegmentLengths = curve_in.segmentLengths;
 
 		auto start = std::chrono::high_resolution_clock::now();
 
@@ -34,11 +32,11 @@ namespace modules {
 		
 		for (int i = 0; i < max_iters; i++) {
 			// 1. Move nodes according to the descent direction and clamp to boundary
-			clamp_to_boundary(newNodes, nodes, step, descentDirections, options);
+			clamp_to_boundary(newNodes, curve_in.nodes, step, descentDirections, options);
 
 			// 2. Recalculate segments lengths
-			for (size_t j = 0; j < segments.size(); j++) {
-				const auto& segment = segments[j];
+			for (size_t j = 0; j < curve_in.segments.size(); j++) {
+				const auto& segment = curve_in.segments[j];
 				int startIdx = segment[0];
 				int endIdx = segment[1];
 				newSegmentLengths[j] = norm(newNodes[endIdx] - newNodes[startIdx]);
@@ -64,7 +62,7 @@ namespace modules {
 
 		// if we reach here, it means we couldn't find a valid path,
 		// so we return the original path
-		return std::make_tuple(nodes, segments, segmentLengths);
+		return std::make_tuple(curve_in.nodes, curve_in.segments, curve_in.segmentLengths);
 	}
 
 	void clamp_to_boundary(

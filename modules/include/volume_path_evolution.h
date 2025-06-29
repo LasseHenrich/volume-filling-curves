@@ -1,6 +1,7 @@
 #pragma once
 #include <geometrycentral/utilities/vector3.h>
 #include "scene_file.h"
+#include "../../volume-filling-curves.h"
 #include <vector>
 #include <array>
 #include <tuple>
@@ -12,10 +13,8 @@ namespace modules {
 		std::vector<Vector3>, // nodes
 		std::vector<std::array<int, 2>>, // segments
 		std::vector<double> // segment lengths
-	> volume_path_evolution(
-		const std::vector<Vector3>& nodes,
-		const std::vector<std::array<int, 2>>& segments,
-		const std::vector<double>& segmentLengths,
+	> volume_path_evolution_curve(
+		const Curve& curve,
 		const double h,
 		const std::vector<Vector3>& descentDirections,
 		const scene_file::SceneObject& options

@@ -59,6 +59,13 @@ namespace modules {
         else if (key == "use_backprojection") {
             scene.use_backprojection = (parts.size() < 2 || parts[1] == "true");
         }
+		else if (key == "filling_dimension") {
+			if (parts.size() < 2) {
+				cerr << "Error: filling dimension not specified" << endl;
+				exit(1);
+			}
+			scene.filling_dimension = stoi(parts[1]);
+		}
 
         else if (key == "volume") {
             if (parts.size() < 2) {

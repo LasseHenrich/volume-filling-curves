@@ -54,6 +54,7 @@ namespace modules {
             double p = 2;
             double q = 2;
             bool use_backprojection = false;
+			int filling_dimension = 1; // 1 for curves, 2 for surfaces
 
 			SceneObject_Volume volume;
             bool visualizeVolume = false;

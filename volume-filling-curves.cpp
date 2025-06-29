@@ -1,4 +1,4 @@
-﻿#include "polyscope/polyscope.h"
+#include "polyscope/polyscope.h"
 #include "polyscope/surface_mesh.h"
 #include <polyscope/curve_network.h>
 #include <polyscope/point_cloud.h>
@@ -19,30 +19,23 @@
 using namespace modules;
 
 scene_file::SceneObject scene;
-
-std::vector<Vector3> nodes = {}, restNodes = {}, initialNodes = {};
-std::vector<std::array<int, 2>> segments = {}, restSegments = {}, initialSegments = {};
-std::vector<double> segmentLengths = {}, restSegmentLengths = {}, initialSegmentLengths = {};
+Curve curve, restCurve, initialCurve;
 
 int iteration = 0;
 bool runLoop = false;
 
-std::tuple<
-	std::vector<Vector3>, // nodes
-	std::vector<std::array<int, 2>>, // segments
-	std::vector<double> // norms of the vectors
-> formatVectorsForVisualization(
-    std::vector<Vector3>& nodes,
+Curve formatVectorsForVisualization(
+    const Curve& curve,
     std::vector<Vector3>& directions
 ) {
-	assert(nodes.size() == directions.size(), "nodes and directions must have the same size");
+	assert(curve.nodes.size() == directions.size(), "nodes and directions must have the same size");
 
-	std::vector<Vector3> dNodes = nodes;
+	std::vector<Vector3> dNodes = curve.nodes;
     std::vector<std::array<int, 2>> dSegments = {};
     std::vector<double> dNorm = {};
     
     for (int i = 0; i < directions.size(); i++) {
-        dNodes.push_back(nodes[i] + directions[i]);
+        dNodes.push_back(curve.nodes[i] + directions[i]);
 		dNorm.push_back(norm(directions[i]));
     }
 
@@ -52,53 +45,55 @@ std::tuple<
 		dSegments.push_back(line);
 	}
 
-	return std::make_tuple(dNodes, dSegments, dNorm);
+	return {
+		dNodes,
+		dSegments,
+		dNorm
+	};
+}
+
+void doWork_curve() {
+    restCurve.nodes = curve.nodes;
+    restCurve.segments = curve.segments;
+    restCurve.segmentLengths = curve.segmentLengths;
+
+    // 1. compute descent direction
+    auto [descent, gradient, energy, medialAxis] = modules::volume_filling_energy_curve(
+        curve,
+        scene
+    );
+
+    // 2. evolve curve without self-intersections
+    std::tie(curve.nodes, curve.segments, curve.segmentLengths) = modules::volume_path_evolution_curve(
+        curve,
+        scene.h,
+        descent,
+        scene
+    );
+
+
+    // visualization
+    polyscope::registerCurveNetwork("curve", curve.nodes, curve.segments);
 }
 
 void doWork() {
     iteration++;
 
-    restNodes = nodes;
-    restSegments = segments;
-    restSegmentLengths = segmentLengths;
-
-    std::cout << "===== iteration: " << iteration << "=====" << std::endl;
-
-    std::cout << "numNodes: " << nodes.size() << std::endl;
-    std::cout << "numSegments: " << segments.size() << std::endl;
-    std::cout << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // 1. compute descent direction
-	auto [descent, gradient, energy, medialAxis] = modules::volume_filling_energy(
-		nodes,
-		segments,
-		segmentLengths,
-		scene
-	);
+    std::cout << "===== iteration: " << iteration << "=====" << std::endl;
 
-    // 2. evolve curve without self-intersections
-	std::tie(nodes, segments, segmentLengths) = modules::volume_path_evolution(
-		nodes,
-		segments,
-		segmentLengths,
-        scene.h,
-        descent,
-		scene
-	);
-	
+    std::cout << "numNodes: " << curve.nodes.size() << std::endl;
+    std::cout << "numSegments: " << curve.segments.size() << std::endl;
+    std::cout << std::endl;
 
-    // visualization
-    auto crv = polyscope::registerCurveNetwork("curve", nodes, segments);
-
-    /*
-	auto [dNodes, dSegments, dNorm] = formatVectorsForVisualization(nodes, descent);
-	auto dn = polyscope::registerCurveNetwork("descent direction", descent, segments);
-	dn->addEdgeScalarQuantity("descent norm", dNorm);
-	auto gn = polyscope::registerCurveNetwork("gradient direction", gradient, segments);
-	gn->addEdgeScalarQuantity("gradient norm", dNorm);
-    */
+    if (scene.filling_dimension == 1) {
+        doWork_curve();
+    }
+    else {
+        // ToDo
+    }
 }
 
 void polyscopeCallback() {
@@ -111,6 +106,50 @@ void polyscopeCallback() {
     if (iteration % 200 == 0) {
         runLoop = false;
     }
+}
+
+void initialize_curve(Curve& curve, const scene_file::SceneObject& scene) {
+    if (scene.curveFileName != "") {
+        std::tie(curve.nodes, curve.segments) = modules::read_nodes(scene.curveFileName);
+    }
+
+    // fallback in case nodes have not yet been initialized by any prior logic
+    if (curve.nodes.size() == 0) {
+        // just create a circle around the origin
+
+        float circleRadius = 1.f;
+        for (int i = 0; i < 100; i++) {
+			float angle = (float)i / 100 * 2 * igl::PI;
+            float x = circleRadius * cos(angle);
+            float y = circleRadius * sin(angle);
+            float z = circleRadius * sin(2*angle) * 0.3;
+
+			curve.nodes.push_back(Vector3{ x, y, z });
+        }
+
+        // create segments
+        for (int i = 0; i < curve.nodes.size(); i++) {
+            int j = (i + 1) % curve.nodes.size();
+            curve.segments.push_back(std::array<int, 2>{i, j});
+        }
+    }
+
+    // calculate segment lengths
+	for (int i = 0; i < curve.segments.size(); i++) {
+		int j = curve.segments[i][0];
+		int k = curve.segments[i][1];
+		curve.segmentLengths.push_back(norm(curve.nodes[j] - curve.nodes[k]));
+	}
+
+    // set initial values
+    initialCurve.nodes = curve.nodes;
+    initialCurve.segments = curve.segments;
+    initialCurve.segmentLengths = curve.segmentLengths;
+
+    polyscope::registerCurveNetwork("initial curve", initialCurve.nodes, initialCurve.segments)->setEnabled(false);
+    polyscope::registerCurveNetwork("curve", curve.nodes, curve.segments);
+
+    // ToDo: Calculate and render tangents (and normals, if that concept applies)
 }
 
 int main(int argc, char **argv) {
@@ -232,71 +271,12 @@ int main(int argc, char **argv) {
 	else if (scene.volume.volumeType == scene_file::VolumeType::SDF) {
 	}
 
-    if (scene.curveFileName != "") {
-        std::tie(nodes, segments) = modules::read_nodes(scene.curveFileName);
+    if (scene.filling_dimension == 1) {
+        initialize_curve(curve, scene);
     }
-
-    // fallback in case nodes have not yet been initialized by any prior logic
-    if (nodes.size() == 0) {
-        // just create a circle (with noise) around the origin
-
-        float circleRadius = 1.f;
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_real_distribution<float> noiseDist(-0.1f, 0.1f);
-
-        /*
-        for (int i = 0; i < 100; i++) {
-            float angle = (float)i / 100 * 2 * igl::PI;
-            float x = circleRadius * cos(angle) + noiseDist(gen);
-            float y = circleRadius * sin(angle) + noiseDist(gen);
-			float z = 0.f + noiseDist(gen);
-            nodes.push_back(Vector3{ x, y, z });
-        }
-        */
-
-        for (int i = 0; i < 100; i++) {
-			float angle = (float)i / 100 * 2 * igl::PI;
-            float x = circleRadius * cos(angle);
-            float y = circleRadius * sin(angle);
-            float z = circleRadius * sin(2*angle) * 0.3;
-
-			nodes.push_back(Vector3{ x, y, z });
-        }
-
-        // if mesh, move nodes to mesh's center
-        /*
-		if (scene.volume.volumeType == scene_file::VolumeType::MESH && scene.volume.convert_to_sdf) {
-			openvdb::Vec3s center = scene.volume.sdf->evalActiveVoxelBoundingBox().getCenter();
-			for (auto& node : nodes) {
-				node += Vector3{ center.x(), center.y(), center.z() };
-			}
-		}
-        */
-
-        // create segments
-        for (int i = 0; i < nodes.size(); i++) {
-            int j = (i + 1) % nodes.size();
-            segments.push_back(std::array<int, 2>{i, j});
-        }
+    else {
+        // initialize_surface(surface, scene);
     }
-
-    // calculate segment lengths
-	for (int i = 0; i < segments.size(); i++) {
-		int j = segments[i][0];
-		int k = segments[i][1];
-		segmentLengths.push_back(norm(nodes[j] - nodes[k]));
-	}
-
-    // set initial values
-	initialNodes = nodes;
-	initialSegments = segments;
-	initialSegmentLengths = segmentLengths;
-
-	polyscope::registerCurveNetwork("initial curve", initialNodes, initialSegments)->setEnabled(false);
-    polyscope::registerCurveNetwork("curve", nodes, segments);
-
-    // ToDo: Calculate and render tangents (and normals, if that concept applies)
 
     polyscope::show();
 

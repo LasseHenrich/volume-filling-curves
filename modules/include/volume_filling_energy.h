@@ -4,6 +4,7 @@
 #include <geometrycentral/utilities/vector3.h>
 #include <scene_file.h>
 #include <TinyAD/ScalarFunction.hh>
+#include "../../volume-filling-curves.h"
 
 using namespace geometrycentral;
 
@@ -13,10 +14,8 @@ namespace modules {
 		std::vector<Vector3>, // gradient direction
 		double, // energy
 		std::vector<std::vector<Vector3>> // medial axis
-	> volume_filling_energy(
-		const std::vector<Vector3>& nodes,
-		const std::vector<std::array<int, 2>>& segments,
-		const std::vector<double>& segmentLengths,
+	> volume_filling_energy_curve(
+		const Curve& curve,
 		const scene_file::SceneObject& options = {}
 	);
 

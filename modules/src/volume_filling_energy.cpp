@@ -117,12 +117,14 @@ namespace modules {
 		std::vector<Vector3>, // gradient direction
 		double, // energy
 		std::vector<std::vector<Vector3>> // medial axis
-	> volume_filling_energy(
-		const std::vector<Vector3>& nodes,
-		const std::vector<std::array<int, 2>>& segments,
-		const std::vector<double>& segmentLengths,
+	> volume_filling_energy_curve(
+		const Curve& curve,
 		const scene_file::SceneObject& options
 	) {
+		std::vector<Vector3> nodes = curve.nodes;
+		std::vector<std::array<int, 2>> segments = curve.segments;
+		std::vector<double> segmentLengths = curve.segmentLengths;
+
 		// making sure that we have at least three segments
 		if (segments.size() < 3) {
 			std::cerr << "Error: At least three segments are required." << std::endl;
