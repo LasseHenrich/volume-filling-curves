@@ -171,7 +171,6 @@ int main(int argc, char **argv) {
             std::cout << "Registered polyscope mesh" << std::endl;
         }
 
-
         if (scene.volume.convert_to_sdf) {
             // Use openvdb to convert mesh to SDF
             std::cout << "Converting Polyscope mesh data to OpenVDB format" << std::endl;

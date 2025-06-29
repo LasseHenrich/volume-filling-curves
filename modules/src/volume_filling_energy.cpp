@@ -293,6 +293,8 @@ namespace modules {
 		auto repulsiveEnd = std::chrono::high_resolution_clock::now();
 
 		// 4. Volume-constraint terms
+		// commented-out as they seem redundant with the backprojection
+		/*
 		auto volume = options.volume;
 		if (volume.volumeType == scene_file::VolumeType::PRIMITIVE) {
 			if (volume.primitive_type == scene_file::PrimitiveType::SPHERE) {
@@ -450,6 +452,7 @@ namespace modules {
 		else {
 			std::cerr << "Unknown volume type or no volume" << std::endl;
 		}
+		*/
 
 
 		auto x = func.x_from_data([&](int v_idx) {
