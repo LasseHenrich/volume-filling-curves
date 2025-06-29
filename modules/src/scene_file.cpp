@@ -56,6 +56,9 @@ namespace modules {
         else if (key == "rmax") {
             scene.rmax = stod(parts[1]);
         }
+        else if (key == "use_backprojection") {
+            scene.use_backprojection = (parts.size() < 2 || parts[1] == "true");
+        }
 
         else if (key == "volume") {
             if (parts.size() < 2) {

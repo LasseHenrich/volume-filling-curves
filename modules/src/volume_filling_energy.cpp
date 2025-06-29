@@ -168,7 +168,7 @@ namespace modules {
 			Vector3 b;
 			Vector3 n;
 
-			if (false) { // 3D
+			if (true) { // 3D
 				Vector3 t_prev, t_next;
 				if (i == 0) {
 					t_prev = segmentTangents[segments.size() - 1];

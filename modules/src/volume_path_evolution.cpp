@@ -92,7 +92,7 @@ namespace modules {
 			double d_target = sampler.wsSample(openvdb::Vec3d(p_target.x, p_target.y, p_target.z));
 
 			// if the target point is outside the volume (SDF > 0), find the intersection point.
-			if (d_target > 0) {
+			if (options.use_backprojection && d_target > 0) {
 				// bisection search to find the parameter t in [0, 1] such that p + t*v is on the boundary.
 				double t_low = 0.0;
 				double t_high = 1.0;

@@ -53,6 +53,7 @@ namespace modules {
             double h = igl::PI * radius / 20;
             double p = 2;
             double q = 2;
+            bool use_backprojection = false;
 
 			SceneObject_Volume volume;
             bool visualizeVolume = false;
