@@ -1,4 +1,9 @@
+#pragma once
 #include <geometrycentral/utilities/vector3.h>
+#include "scene_file.h"
+#include <vector>
+#include <array>
+#include <tuple>
 
 using namespace geometrycentral;
 
@@ -12,7 +17,16 @@ namespace modules {
 		const std::vector<std::array<int, 2>>& segments,
 		const std::vector<double>& segmentLengths,
 		const double h,
-		const std::vector<Vector3>& descentDirections
+		const std::vector<Vector3>& descentDirections,
+		const scene_file::SceneObject& options
+	);
+
+	void clamp_to_boundary(
+		std::vector<Vector3>& nodes,
+		const std::vector<Vector3>& old_nodes,
+		double step,
+		const std::vector<Vector3>& descentDirections,
+		const scene_file::SceneObject& options
 	);
 
 	bool check_path_validity(

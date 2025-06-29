@@ -84,7 +84,8 @@ void doWork() {
 		segments,
 		segmentLengths,
         scene.h,
-        descent
+        descent,
+		scene
 	);
 	
 
