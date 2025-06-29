@@ -19,7 +19,8 @@
 using namespace modules;
 
 scene_file::SceneObject scene;
-Curve curve, restCurve, initialCurve;
+Curve currentCurve, restCurve, initialCurve;
+Surface currentSurface, restSurface, initialSurface; // 'current'Surface as surface throws an ambiguity with polyscope::SurfaceMesh
 
 int iteration = 0;
 bool runLoop = false;
@@ -53,19 +54,19 @@ Curve formatVectorsForVisualization(
 }
 
 void doWork_curve() {
-    restCurve.nodes = curve.nodes;
-    restCurve.segments = curve.segments;
-    restCurve.segmentLengths = curve.segmentLengths;
+    restCurve.nodes = currentCurve.nodes;
+    restCurve.segments = currentCurve.segments;
+    restCurve.segmentLengths = currentCurve.segmentLengths;
 
     // 1. compute descent direction
     auto [descent, gradient, energy, medialAxis] = modules::volume_filling_energy_curve(
-        curve,
+        currentCurve,
         scene
     );
 
     // 2. evolve curve without self-intersections
-    std::tie(curve.nodes, curve.segments, curve.segmentLengths) = modules::volume_path_evolution_curve(
-        curve,
+    std::tie(currentCurve.nodes, currentCurve.segments, currentCurve.segmentLengths) = modules::volume_path_evolution_curve(
+        currentCurve,
         scene.h,
         descent,
         scene
@@ -73,7 +74,7 @@ void doWork_curve() {
 
 
     // visualization
-    polyscope::registerCurveNetwork("curve", curve.nodes, curve.segments);
+    polyscope::registerCurveNetwork("curve", currentCurve.nodes, currentCurve.segments);
 }
 
 void doWork() {
@@ -84,8 +85,8 @@ void doWork() {
 
     std::cout << "===== iteration: " << iteration << "=====" << std::endl;
 
-    std::cout << "numNodes: " << curve.nodes.size() << std::endl;
-    std::cout << "numSegments: " << curve.segments.size() << std::endl;
+    std::cout << "numNodes: " << currentCurve.nodes.size() << std::endl;
+    std::cout << "numSegments: " << currentCurve.segments.size() << std::endl;
     std::cout << std::endl;
 
     if (scene.filling_dimension == 1) {
@@ -148,9 +149,46 @@ void initialize_curve(Curve& curve, const scene_file::SceneObject& scene) {
 
     polyscope::registerCurveNetwork("initial curve", initialCurve.nodes, initialCurve.segments)->setEnabled(false);
     polyscope::registerCurveNetwork("curve", curve.nodes, curve.segments);
-
-    // ToDo: Calculate and render tangents (and normals, if that concept applies)
 }
+
+
+void initialize_surface(Surface& surface, const scene_file::SceneObject& scene) {
+    // Create a simple square mesh for now
+    std::vector<Vector3> vertices = {
+        {-0.5, -0.5, 0.0},
+        {0.5, -0.5, 0.0},
+        {0.5, 0.5, 0.0},
+        {-0.5, 0.5, 0.0}
+    };
+
+    std::vector<std::vector<size_t>> faces = {
+        {0, 1, 2},
+        {0, 2, 3}
+    };
+
+    // Create the mesh and vertex positions
+    surface.mesh.reset(new geometrycentral::surface::ManifoldSurfaceMesh(faces));
+    surface.vertexPositions = geometrycentral::surface::VertexData<Vector3>(*surface.mesh);
+
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        surface.vertexPositions[surface.mesh->vertex(i)] = vertices[i];
+    }
+
+    // Set initial values
+    // Create a new mesh for initialSurface using the same connectivity
+    initialSurface.mesh.reset(new geometrycentral::surface::ManifoldSurfaceMesh(faces));
+    // Create VertexData for the new initialSurface mesh
+    initialSurface.vertexPositions = geometrycentral::surface::VertexData<Vector3>(*initialSurface.mesh);
+    // Copy the vertex positions from the current surface to the initial surface
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        initialSurface.vertexPositions[initialSurface.mesh->vertex(i)] = vertices[i];
+    }
+
+    // Register with Polyscope
+    polyscope::registerSurfaceMesh("initial surface", initialSurface.vertexPositions, initialSurface.mesh->getFaceVertexList())->setEnabled(false);
+    polyscope::registerSurfaceMesh("surface", surface.vertexPositions, surface.mesh->getFaceVertexList());
+}
+
 
 int main(int argc, char **argv) {
 	args::ArgumentParser parser("volume filling curves");
@@ -272,10 +310,10 @@ int main(int argc, char **argv) {
 	}
 
     if (scene.filling_dimension == 1) {
-        initialize_curve(curve, scene);
+        initialize_curve(currentCurve, scene);
     }
     else {
-        // initialize_surface(surface, scene);
+        initialize_surface(currentSurface, scene);
     }
 
     polyscope::show();
