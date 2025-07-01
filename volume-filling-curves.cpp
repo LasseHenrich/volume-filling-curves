@@ -166,12 +166,10 @@ void initialize_surface(Surface& surface, const scene_file::SceneObject& scene) 
 
     surface = modules::read_surface(scene.fillingManifoldFileName);
 
-    auto faces = surface.mesh->getFaceVertexList();
+    // we just read it two times, as the copying is difficult and I failed to find a solutino
+	initialSurface = modules::read_surface(scene.fillingManifoldFileName);
 
-    /*initialSurface.mesh = std::make_unique<ManifoldSurfaceMesh>(faces);
-    initialSurface.vertexPositions = surface.vertexPositions.reinterpretTo(*initialSurface.mesh);
-
-    polyscope::registerSurfaceMesh("initial surface", initialSurface.vertexPositions, initialSurface.mesh->getFaceVertexList())->setEnabled(false);*/
+    polyscope::registerSurfaceMesh("initial surface", initialSurface.vertexPositions, initialSurface.mesh->getFaceVertexList());
     polyscope::registerSurfaceMesh("surface", surface.vertexPositions, surface.mesh->getFaceVertexList());
 }
 
