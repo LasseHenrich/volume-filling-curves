@@ -1,4 +1,5 @@
 #include "scene_file.h"
+#include "mesh_parser.h"
 #include <regex>
 
 namespace modules {
@@ -36,8 +37,8 @@ namespace modules {
             return;
         }
 
-        if (key == "curve") {
-            scene.curveFileName = directory + parts[1];
+        if (key == "filling_manifold") {
+            scene.fillingManifoldFileName = directory + parts[1];
         }
         else if (key == "radius") {
             scene.radius = stod(parts[1]);
@@ -208,7 +209,7 @@ namespace modules {
     std::tuple<
         std::vector<Vector3>, // nodes
         std::vector<std::array<int, 2>> // segments
-    > read_nodes(std::string filename) {
+    > read_curve(std::string filename) {
         std::vector<Vector3> nodes;
         std::vector<std::array<int, 2>> segments;
         std::ifstream file(filename);
@@ -257,5 +258,27 @@ namespace modules {
 
         file.close();
         return { nodes, segments };
+    }
+
+    Surface read_surface(std::string filename) {
+        GeometryCentralMeshData mesh_data = file_to_geometrycentral_data(filename);
+
+        auto faces = mesh_data.mesh->getFaceVertexList();
+        std::unique_ptr<ManifoldSurfaceMesh> manifold_mesh = std::make_unique<ManifoldSurfaceMesh>(faces);
+
+        VertexData<Vector3> vertex_positions(*manifold_mesh);
+        for (Vertex v : manifold_mesh->vertices()) {
+            // Use the integer index of the vertex to look up the position data
+            // from the original mesh's geometry container. This is the correct way
+            // to transfer data between two different mesh objects.
+            // Otherwise some internal geometrycentral assertion fails...
+            vertex_positions[v] = mesh_data.geometry->inputVertexPositions[v.getIndex()];
+        }
+
+        Surface surface;
+        surface.mesh = std::move(manifold_mesh);
+        surface.vertexPositions = std::move(vertex_positions);
+
+        return surface;
     }
 }

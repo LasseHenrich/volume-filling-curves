@@ -1,7 +1,6 @@
 #pragma once
 #include <geometrycentral/utilities/vector3.h>
 #include "scene_file.h"
-#include "../../volume-filling-curves.h"
 #include <vector>
 #include <array>
 #include <tuple>

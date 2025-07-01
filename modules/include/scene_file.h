@@ -9,6 +9,8 @@
 #include <geometrycentral/utilities/vector3.h>
 #include <openvdb/openvdb.h>
 
+#include <structures.h>
+
 using namespace geometrycentral;
 
 namespace modules {
@@ -47,7 +49,7 @@ namespace modules {
         // so they don't bother at the moment.
         // -> ToDo: Remove unnecessary props
         struct SceneObject {
-            std::string curveFileName = "";
+            std::string fillingManifoldFileName = "";
             double radius = 0.1;
             double rmax = radius * 5;
             double h = igl::PI * radius / 20;
@@ -76,5 +78,7 @@ namespace modules {
 	std::tuple<
 		std::vector<Vector3>, // nodes
 		std::vector<std::array<int, 2>> // segments
-    > read_nodes(std::string filename);
+    > read_curve(std::string filename);
+    
+	Surface read_surface(std::string filename);
 }

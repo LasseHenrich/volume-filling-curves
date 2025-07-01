@@ -4,7 +4,6 @@
 #include <geometrycentral/utilities/vector3.h>
 #include <scene_file.h>
 #include <TinyAD/ScalarFunction.hh>
-#include "../../volume-filling-curves.h"
 
 using namespace geometrycentral;
 

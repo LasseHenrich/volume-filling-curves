@@ -9,12 +9,12 @@
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Interpolation.h>
 
-#include "volume-filling-curves.h"
 #include <chrono>
 #include <volume_filling_energy.h>
 #include <volume_path_evolution.h>
 #include <scene_file.h>
 #include <mesh_parser.h>
+#include <structures.h>
 
 using namespace modules;
 
@@ -77,6 +77,10 @@ void doWork_curve() {
     polyscope::registerCurveNetwork("curve", currentCurve.nodes, currentCurve.segments);
 }
 
+void doWork_surface() {
+    // (Placeholder for surface evolution logic)
+}
+
 void doWork() {
     iteration++;
 
@@ -85,15 +89,17 @@ void doWork() {
 
     std::cout << "===== iteration: " << iteration << "=====" << std::endl;
 
-    std::cout << "numNodes: " << currentCurve.nodes.size() << std::endl;
-    std::cout << "numSegments: " << currentCurve.segments.size() << std::endl;
-    std::cout << std::endl;
-
     if (scene.filling_dimension == 1) {
+        std::cout << "numNodes: " << currentCurve.nodes.size() << std::endl;
+        std::cout << "numSegments: " << currentCurve.segments.size() << std::endl;
+        std::cout << std::endl;
         doWork_curve();
     }
     else {
-        // ToDo
+        std::cout << "numVertices: " << currentSurface.mesh->nVertices() << std::endl;
+        std::cout << "numFaces: " << currentSurface.mesh->nFaces() << std::endl;
+        std::cout << std::endl;
+        doWork_surface();
     }
 }
 
@@ -110,8 +116,8 @@ void polyscopeCallback() {
 }
 
 void initialize_curve(Curve& curve, const scene_file::SceneObject& scene) {
-    if (scene.curveFileName != "") {
-        std::tie(curve.nodes, curve.segments) = modules::read_nodes(scene.curveFileName);
+    if (scene.fillingManifoldFileName != "") {
+        std::tie(curve.nodes, curve.segments) = modules::read_curve(scene.fillingManifoldFileName);
     }
 
     // fallback in case nodes have not yet been initialized by any prior logic
@@ -153,39 +159,19 @@ void initialize_curve(Curve& curve, const scene_file::SceneObject& scene) {
 
 
 void initialize_surface(Surface& surface, const scene_file::SceneObject& scene) {
-    // Create a simple square mesh for now
-    std::vector<Vector3> vertices = {
-        {-0.5, -0.5, 0.0},
-        {0.5, -0.5, 0.0},
-        {0.5, 0.5, 0.0},
-        {-0.5, 0.5, 0.0}
-    };
-
-    std::vector<std::vector<size_t>> faces = {
-        {0, 1, 2},
-        {0, 2, 3}
-    };
-
-    // Create the mesh and vertex positions
-    surface.mesh.reset(new geometrycentral::surface::ManifoldSurfaceMesh(faces));
-    surface.vertexPositions = geometrycentral::surface::VertexData<Vector3>(*surface.mesh);
-
-    for (size_t i = 0; i < vertices.size(); ++i) {
-        surface.vertexPositions[surface.mesh->vertex(i)] = vertices[i];
+    if (scene.fillingManifoldFileName == "") {
+		std::cerr << "No initial surface mesh file specified in the scene configuration." << std::endl;
+        std::abort();
     }
 
-    // Set initial values
-    // Create a new mesh for initialSurface using the same connectivity
-    initialSurface.mesh.reset(new geometrycentral::surface::ManifoldSurfaceMesh(faces));
-    // Create VertexData for the new initialSurface mesh
-    initialSurface.vertexPositions = geometrycentral::surface::VertexData<Vector3>(*initialSurface.mesh);
-    // Copy the vertex positions from the current surface to the initial surface
-    for (size_t i = 0; i < vertices.size(); ++i) {
-        initialSurface.vertexPositions[initialSurface.mesh->vertex(i)] = vertices[i];
-    }
+    surface = modules::read_surface(scene.fillingManifoldFileName);
 
-    // Register with Polyscope
-    polyscope::registerSurfaceMesh("initial surface", initialSurface.vertexPositions, initialSurface.mesh->getFaceVertexList())->setEnabled(false);
+    auto faces = surface.mesh->getFaceVertexList();
+
+    /*initialSurface.mesh = std::make_unique<ManifoldSurfaceMesh>(faces);
+    initialSurface.vertexPositions = surface.vertexPositions.reinterpretTo(*initialSurface.mesh);
+
+    polyscope::registerSurfaceMesh("initial surface", initialSurface.vertexPositions, initialSurface.mesh->getFaceVertexList())->setEnabled(false);*/
     polyscope::registerSurfaceMesh("surface", surface.vertexPositions, surface.mesh->getFaceVertexList());
 }
 
