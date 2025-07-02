@@ -4,7 +4,9 @@
 #include <geometrycentral/utilities/vector3.h>
 #include <chrono>
 #include <remesh_curve.h>
+#include <remesh_surface.h>
 #include <openvdb/tools/Interpolation.h>
+#include "geometrycentral/surface/remeshing.h"
 
 using namespace geometrycentral;
 
@@ -65,15 +67,51 @@ namespace modules {
 		return std::make_tuple(curve_in.nodes, curve_in.segments, curve_in.segmentLengths);
 	}
 
-	Surface volume_path_evolution_surface(
+	void volume_path_evolution_surface(
 		const Surface& surface,
 		const double h,
 		const std::vector<Vector3>& descentDirections,
 		const scene_file::SceneObject& options
 	) {
-		// ToDo
-		std::cerr << "Volume path evolution for surfaces is not implemented yet." << std::endl;
-		std::abort();
+		size_t numNodes = surface.mesh->nVertices();
+		std::vector<Vector3> nodes(numNodes);
+		for (size_t i = 0; i < numNodes; i++) {
+			nodes[i] = surface.geometry->vertexPositions[i];
+		}
+
+		std::vector<Vector3> newNodes = nodes;
+
+		auto start = std::chrono::high_resolution_clock::now();
+
+		double step = 1.0f;
+
+		for (int i = 0; i < max_iters; i++) {
+			// 1. Move nodes according to the descent direction and clamp to boundary
+			clamp_to_boundary(newNodes, nodes, step, descentDirections, options);
+			for (size_t j = 0; j < newNodes.size(); j++) {
+				surface.geometry->inputVertexPositions[j] = newNodes[j];
+			}
+			surface.geometry->refreshQuantities();
+
+			// 2. Remesh
+			/*modules::remesh_surface(
+				surface,
+				h
+			);*/
+			adjustEdgeLengths
+
+			// 3. Check for self-intersections
+			// ToDo
+			bool isValid = true;
+
+			if (isValid) {
+				return;
+			}
+		}
+
+		// if we reach here, it means we couldn't find a valid path,
+		// so we return the original path
+		// ToDo: Actually return the surface to its original state
 	}
 
 	void clamp_to_boundary(

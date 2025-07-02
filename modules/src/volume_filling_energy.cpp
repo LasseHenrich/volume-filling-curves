@@ -294,7 +294,7 @@ namespace modules {
 		auto tangentEvalEnd = std::chrono::high_resolution_clock::now();
 
 		// 3.2 Medial axis
-		auto nodeMedialAxis = modules::medial_axis(
+		auto nodeMedialAxis = modules::medial_axis_curve(
 			nodes,
 			segments,
 			nodeTangents,
@@ -485,11 +485,11 @@ namespace modules {
 		geometrycentral::surface::ManifoldSurfaceMesh* mesh = surface.mesh.get();
 		geometrycentral::surface::VertexPositionGeometry* geometry = surface.geometry.get();
 
-		size_t numVertices = mesh->nVertices();
+		size_t numNodes = mesh->nVertices();
 		size_t numFaces = mesh->nFaces();
 
-		std::vector<Vector3> nodes(numVertices);
-		for (size_t i = 0; i < numVertices; i++) {
+		std::vector<Vector3> nodes(numNodes);
+		for (size_t i = 0; i < numNodes; i++) {
 			nodes[i] = geometry->vertexPositions[i];
 		}
 
@@ -612,12 +612,49 @@ namespace modules {
 
 		auto dirichletEnd = std::chrono::high_resolution_clock::now();
 
+		// 3. Medial axis term
+		auto tetTopologyEnd = std::chrono::high_resolution_clock::now();
 
+		// 3.1 Node-based normals
+		std::vector<Vector3> nodeNormals(nodes.size());
+		geometry->requireVertexNormals(); // computes the vertexNormals array
+		VertexData<Vector3>& vertexNormals = geometry->vertexNormals;
 
+		 for (size_t i = 0; i < numNodes; i++) {
+			 Vertex v = mesh->vertex(i);
+			 nodeNormals[i] = vertexNormals[v];
+		 }
 
-		// ToDo
+		auto tangentEvalEnd = std::chrono::high_resolution_clock::now();
 
+		// 3.2 Medial axis
+		auto nodeMedialAxis = modules::medial_axis_surface(
+			nodes,
+			nodeNormals,
+			maxRadius
+		);
 
+		auto medialAxisEnd = std::chrono::high_resolution_clock::now();
+
+		// 3.3 Add medial axis energy term AS WELL AS volumetric energy term when using SDF
+		// note that with our current setup we just have one uniform alpha
+		openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler> sampler(*options.volume.sdf);
+		func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
+			return calculate_medial_axis_sdf_energy(
+				element,
+				nodeMedialAxis,
+				options,
+				sampler,
+				radius,
+				maxRadius,
+				alpha,
+				std::vector<double>(nodes.size(), 1.0), // uniform weight for all nodes
+				q,
+				totalSurfaceArea
+			);
+		});
+
+		auto repulsiveEnd = std::chrono::high_resolution_clock::now();
 
 
 		auto x = func.x_from_data([&](int v_idx) {

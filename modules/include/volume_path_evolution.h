@@ -13,13 +13,13 @@ namespace modules {
 		std::vector<std::array<int, 2>>, // segments
 		std::vector<double> // segment lengths
 	> volume_path_evolution_curve(
-		const Curve& curve,
+		const Curve& curve_in,
 		const double h,
 		const std::vector<Vector3>& descentDirections,
 		const scene_file::SceneObject& options
 	);
 
-	Surface volume_path_evolution_surface(
+	void volume_path_evolution_surface(
 		const Surface& surface,
 		const double h,
 		const std::vector<Vector3>& descentDirections,

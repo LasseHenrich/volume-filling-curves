@@ -89,12 +89,12 @@ void doWork_surface() {
 	);
 
 	// 2. evolve surface without self-intersections
-	/*currentSurface = modules::volume_path_evolution_surface(
+	modules::volume_path_evolution_surface(
 		currentSurface,
 		scene.h,
 		descent,
 		scene
-	);*/
+	);
 
 	// visualization
 	modules::PolyscopeMeshData currentSurface_polyscope = modules::geometrycentral_to_polyscope_data(&currentSurface);
