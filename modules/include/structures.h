@@ -5,8 +5,10 @@
 #include <array>
 #include <geometrycentral/utilities/vector3.h>
 #include <geometrycentral/surface/manifold_surface_mesh.h>
+#include <geometrycentral/surface/vertex_position_geometry.h>
 
 using namespace geometrycentral;
+using namespace geometrycentral::surface;
 
 namespace modules {
     struct Curve {
@@ -16,7 +18,7 @@ namespace modules {
     };
 
     struct Surface {
-        std::unique_ptr<geometrycentral::surface::ManifoldSurfaceMesh> mesh;
-        geometrycentral::surface::VertexData<Vector3> vertexPositions;
+        std::unique_ptr<ManifoldSurfaceMesh> mesh;
+        std::unique_ptr<VertexPositionGeometry> geometry;
     };
 }

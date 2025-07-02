@@ -56,6 +56,7 @@ namespace modules {
             double p = 2;
             double q = 2;
             bool use_backprojection = false;
+            bool use_volumetric_energy = true;
 			int filling_dimension = 1; // 1 for curves, 2 for surfaces
 
 			SceneObject_Volume volume;
@@ -79,6 +80,4 @@ namespace modules {
 		std::vector<Vector3>, // nodes
 		std::vector<std::array<int, 2>> // segments
     > read_curve(std::string filename);
-    
-	Surface read_surface(std::string filename);
 }

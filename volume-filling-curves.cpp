@@ -78,7 +78,27 @@ void doWork_curve() {
 }
 
 void doWork_surface() {
-    // (Placeholder for surface evolution logic)
+	// ToDo: Clone the current surface to the rest surface
+	/*restSurface.vertexPositions = currentSurface.vertexPositions;
+	restSurface.mesh = currentSurface.mesh->clone();*/
+
+	// 1. compute descent direction
+	auto [descent, gradient, energy, medialAxis] = modules::volume_filling_energy_surface(
+		currentSurface,
+		scene
+	);
+
+	// 2. evolve surface without self-intersections
+	/*currentSurface = modules::volume_path_evolution_surface(
+		currentSurface,
+		scene.h,
+		descent,
+		scene
+	);*/
+
+	// visualization
+	modules::PolyscopeMeshData currentSurface_polyscope = modules::geometrycentral_to_polyscope_data(&currentSurface);
+    polyscope::registerSurfaceMesh("surface", currentSurface_polyscope.vertices, currentSurface_polyscope.faces);
 }
 
 void doWork() {
@@ -164,13 +184,15 @@ void initialize_surface(Surface& surface, const scene_file::SceneObject& scene) 
         std::abort();
     }
 
-    surface = modules::read_surface(scene.fillingManifoldFileName);
+	surface = modules::file_to_geometrycentral_data(scene.fillingManifoldFileName);
 
     // we just read it two times, as the copying is difficult and I failed to find a solutino
-	initialSurface = modules::read_surface(scene.fillingManifoldFileName);
+	initialSurface = modules::file_to_geometrycentral_data(scene.fillingManifoldFileName);
 
-    polyscope::registerSurfaceMesh("initial surface", initialSurface.vertexPositions, initialSurface.mesh->getFaceVertexList());
-    polyscope::registerSurfaceMesh("surface", surface.vertexPositions, surface.mesh->getFaceVertexList());
+	modules::PolyscopeMeshData currentSurface_polyscope = modules::geometrycentral_to_polyscope_data(&surface);
+	modules::PolyscopeMeshData initialSurface_polyscope = modules::geometrycentral_to_polyscope_data(&initialSurface);
+	polyscope::registerSurfaceMesh("initial surface", initialSurface_polyscope.vertices, initialSurface_polyscope.faces)->setEnabled(false);
+	polyscope::registerSurfaceMesh("surface", currentSurface_polyscope.vertices, currentSurface_polyscope.faces);
 }
 
 
@@ -213,7 +235,7 @@ int main(int argc, char **argv) {
         openvdb::initialize();
 
         std::cout << "Reading surface mesh" << std::endl;
-		modules::GeometryCentralMeshData geometrycentralMeshData = modules::file_to_geometrycentral_data(scene.volume.mesh_filename);
+		modules::Surface geometrycentralMeshData = modules::file_to_geometrycentral_data(scene.volume.mesh_filename);
 		std::cout << "Surface mesh read with " << geometrycentralMeshData.mesh->nVertices() << " vertices and "
 			<< geometrycentralMeshData.mesh->nFaces() << " faces." << std::endl;
 

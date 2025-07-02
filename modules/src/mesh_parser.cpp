@@ -3,14 +3,14 @@
 #include <openvdb/tools/MeshToVolume.h>
 
 namespace modules {
-	GeometryCentralMeshData file_to_geometrycentral_data(std::string filename) {
-		std::unique_ptr<SurfaceMesh> mesh;
+	Surface file_to_geometrycentral_data(std::string filename) {
+		std::unique_ptr<ManifoldSurfaceMesh> mesh;
 		std::unique_ptr<VertexPositionGeometry> geometry;
-		std::tie(mesh, geometry) = readSurfaceMesh(filename);
-		return GeometryCentralMeshData{ std::move(mesh), std::move(geometry) };
+		std::tie(mesh, geometry) = readManifoldSurfaceMesh(filename);
+		return Surface { std::move(mesh), std::move(geometry) };
 	}
 
-	PolyscopeMeshData geometrycentral_to_polyscope_data(GeometryCentralMeshData const *geometrycentralMeshData) {
+	PolyscopeMeshData geometrycentral_to_polyscope_data(Surface const *geometrycentralMeshData) {
 		auto mesh = geometrycentralMeshData->mesh.get();
 		auto geometry = geometrycentralMeshData->geometry.get();
 
@@ -91,7 +91,7 @@ namespace modules {
 		return true;
 	}
 
-	bool mesh_is_manifold(std::unique_ptr<SurfaceMesh>* mesh) {
+	bool mesh_is_manifold(std::unique_ptr<ManifoldSurfaceMesh>* mesh) {
 		/*
 		for (Edge e : (*mesh)->edges()) {
 			if (e.isBoundary()) {

@@ -60,6 +60,9 @@ namespace modules {
         else if (key == "use_backprojection") {
             scene.use_backprojection = (parts.size() < 2 || parts[1] == "true");
         }
+		else if (key == "use_volumetric_energy") {
+			scene.use_volumetric_energy = (parts.size() < 2 || parts[1] == "true");
+		}
 		else if (key == "filling_dimension") {
 			if (parts.size() < 2) {
 				cerr << "Error: filling dimension not specified" << endl;
@@ -258,27 +261,5 @@ namespace modules {
 
         file.close();
         return { nodes, segments };
-    }
-
-    Surface read_surface(std::string filename) {
-        GeometryCentralMeshData mesh_data = file_to_geometrycentral_data(filename);
-
-        auto faces = mesh_data.mesh->getFaceVertexList();
-        std::unique_ptr<ManifoldSurfaceMesh> manifold_mesh = std::make_unique<ManifoldSurfaceMesh>(faces);
-
-        VertexData<Vector3> vertex_positions(*manifold_mesh);
-        for (Vertex v : manifold_mesh->vertices()) {
-            // Use the integer index of the vertex to look up the position data
-            // from the original mesh's geometry container. This is the correct way
-            // to transfer data between two different mesh objects.
-            // Otherwise some internal geometrycentral assertion fails...
-            vertex_positions[v] = mesh_data.geometry->inputVertexPositions[v.getIndex()];
-        }
-
-        Surface surface;
-        surface.mesh = std::move(manifold_mesh);
-        surface.vertexPositions = std::move(vertex_positions);
-
-        return surface;
     }
 }

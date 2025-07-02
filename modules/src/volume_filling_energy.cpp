@@ -46,7 +46,7 @@ namespace modules {
 		T l_1 = (pos - c_1).norm();
 
 
-		if (options.volume.volumeType == scene_file::VolumeType::MESH && options.volume.convert_to_sdf) {
+		if (options.volume.volumeType == scene_file::VolumeType::MESH && options.volume.convert_to_sdf && options.use_volumetric_energy) {
 			// Get current passive position for sampling
 			openvdb::Vec3d world_pos(TinyAD::to_passive(pos(0)),
 				TinyAD::to_passive(pos(1)),
@@ -55,7 +55,7 @@ namespace modules {
 			// Sample SDF value at current position
 			double sdf_value = sampler.wsSample(world_pos);
 
-			// Compute gradient using finite differences with error checking
+			// Compute gradient using finite differences
 			const double h = 1e-1;
 			double sdf_px = sampler.wsSample(world_pos + openvdb::Vec3d(h, 0, 0));
 			double sdf_mx = sampler.wsSample(world_pos - openvdb::Vec3d(h, 0, 0));
@@ -233,6 +233,8 @@ namespace modules {
 
 			Eigen::Matrix3d R = rotationMatrix[segmentId];
 
+			// R.transpose() multiplication: Differenz wird auch Richtung von Kante projiziert
+			// andere zwei Richtungen haben keinen groﬂen Einfluss
 			Eigen::Vector3<T> p0 = R.transpose() * (x0 - v0);
 			Eigen::Vector3<T> p1 = R.transpose() * (x1 - v1) + Eigen::Vector3d(edgeLen, 0, 0);
 
@@ -471,7 +473,185 @@ namespace modules {
 		);
 	}
 
+	std::tuple<
+		std::vector<Vector3>, // descent direction
+		std::vector<Vector3>, // gradient direction
+		double,              // energy
+		std::vector<std::vector<Vector3>> // medial axis (if applicable)
+	> volume_filling_energy_surface(
+		const Surface& surface,
+		const scene_file::SceneObject& options
+	) {
+		geometrycentral::surface::ManifoldSurfaceMesh* mesh = surface.mesh.get();
+		geometrycentral::surface::VertexPositionGeometry* geometry = surface.geometry.get();
 
+		size_t numVertices = mesh->nVertices();
+		size_t numFaces = mesh->nFaces();
+
+		std::vector<Vector3> nodes(numVertices);
+		for (size_t i = 0; i < numVertices; i++) {
+			nodes[i] = geometry->vertexPositions[i];
+		}
+
+		// making sure that we have at least four faces
+		if (numFaces < 4) {
+			std::cerr << "Error: At least four faces are required." << std::endl;
+			std::abort();
+		}
+
+		auto start = std::chrono::high_resolution_clock::now();
+
+		double radius = options.radius;
+		double maxRadius = options.rmax;
+		double p = options.p;
+		double q = options.q;
+		double branchRadius = radius * branchRatio;
+		double alpha = 4 / (pow(branchRadius, 2));
+
+		std::cout << "alpha: " << alpha << ", p: " << p << ", q: " << q << std::endl;
+
+		std::vector<Vector3> descent(nodes.size(), Vector3{ .0, .0, .0 }), gradient(nodes.size(), Vector3{ .0, .0, .0 });
+
+		double totalSurfaceArea = 0.0;
+		for (const auto& face : mesh->faces()) {
+			totalSurfaceArea += geometry->faceArea(face);
+		}
+
+		auto func = TinyAD::scalar_function<3>(TinyAD::range(nodes.size()));
+
+		std::vector<Eigen::Matrix3d> rotationMatrix(numFaces);
+		std::vector<Vector3> faceNormals(numFaces);
+		std::vector<Vector3> faceTangents(numFaces);
+		std::vector<Vector3> faceBitangents(numFaces);
+
+		// 1. Compute face normals, tangents, and bitangents
+		for (size_t i = 0; i < numFaces; i++) {
+			Face face = mesh->face(i);
+
+			// normal
+			Vector3 n = geometry->faceNormal(face);
+
+			// tangent
+			// note that I might need to access a specific halfedge if the minimization needs a consistent notion of tangent vs. bitangent
+			Halfedge halfedge = face.halfedge(); // returns any one of the halfedges of the face
+			Vector3 t = geometry->halfedgeVector(halfedge);
+			t = normalize(t);
+
+			// bitangent (cross prodcut of normal and tangent)
+			Vector3 b = cross(n, t);
+
+			faceNormals[i] = n;
+			faceTangents[i] = t;
+			faceBitangents[i] = b;
+
+			Eigen::Matrix3d R;
+			R << t.x, b.x, n.x,
+				t.y, b.y, n.y,
+				t.z, b.z, n.z;
+		}
+
+		// 2. Dirichlet term (Penalize area)
+		//func.add_elements<2>(TinyAD::range(numFaces), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
+		//	using T = TINYAD_SCALAR_TYPE(element);
+		//	int faceId = element.handle;
+
+		//	Face face = mesh->face(faceId);
+		//	auto vertices = face.adjacentVertices();
+		//	std::vector<Vertex> vertexVec;
+		//	for (Vertex v : vertices) {
+		//		vertexVec.push_back(v);
+		//	}
+		//	int _v0 = vertexVec[0].getIndex();
+		//	int _v1 = vertexVec[1].getIndex();
+		//	int _v2 = vertexVec[2].getIndex();
+
+		//	Eigen::Vector3<T> x0 = element.variables(_v0);
+		//	Eigen::Vector3<T> x1 = element.variables(_v1);
+		//	Eigen::Vector3<T> x2 = element.variables(_v2);
+
+		//	Eigen::Vector3d v0(
+		//		nodes[_v0].x,
+		//		nodes[_v0].y,
+		//		nodes[_v0].z
+		//	);
+
+		//	Eigen::Vector3d v1(
+		//		nodes[_v1].x,
+		//		nodes[_v1].y,
+		//		nodes[_v1].z
+		//	);
+
+		//	Eigen::Vector3d v2(
+		//		nodes[_v2].x,
+		//		nodes[_v2].y,
+		//		nodes[_v2].z
+		//	);
+
+		//	double faceArea = geometry->faceArea(face);
+
+		//	Eigen::Matrix3d R = rotationMatrix[faceId];
+
+		//	// Compute the area of the triangle formed by the vertices
+		// 
+		// ToDo: Project vertices onto Ebene of the triangle
+		// 
+		//	Eigen::Vector3<T> p0 = R.transpose() * (x0 - v0);
+		//	Eigen::Vector3<T> p1 = R.transpose() * (x1 - v1);
+		//	Eigen::Vector3<T> p2 = R.transpose() * (x2 - v2);
+
+		//	T dx = abs(p0(0) - p1(0)) + abs(p1(0) - p2(0)) + abs(p2(0) - p0(0));
+		//	T dy = abs(p0(1) - p1(1)) + abs(p1(1) - p2(1)) + abs(p2(1) - p0(1));
+		//	T dz = abs(p0(2) - p1(2)) + abs(p1(2) - p2(2)) + abs(p2(2) - p0(2));
+
+		//	auto result = (
+		//		pow(pow(dx, 2) + pow(dy, 2) + pow(dz, 2), p / 2)
+		//		) / (faceArea * totalSurfaceArea);
+
+		//	return result;
+		//});
+
+		auto dirichletEnd = std::chrono::high_resolution_clock::now();
+
+
+
+
+		// ToDo
+
+
+
+
+		auto x = func.x_from_data([&](int v_idx) {
+			auto v = nodes[v_idx];
+			return Eigen::Vector3d(v.x, v.y, v.z);
+		});
+
+		TinyAD::LinearSolver solver;
+		// calls all lambda functions that were added via func.add_elements
+		auto [f, g, H_proj] = func.eval_with_hessian_proj(x);
+
+		auto hessianEnd = std::chrono::high_resolution_clock::now();
+
+		auto d = TinyAD::newton_direction(g, H_proj, solver);
+
+		auto newtonEnd = std::chrono::high_resolution_clock::now();
+
+		func.x_to_data(d, [&](int idx, const Eigen::Vector3d& p) {
+			descent[idx] = Vector3{ p(0), p(1), p(2) };
+			});
+
+		func.x_to_data(g, [&](int idx, const Eigen::Vector3d& p) {
+			gradient[idx] = Vector3{ p(0), p(1), p(2) };
+			});
+
+		auto end = std::chrono::high_resolution_clock::now();
+
+		return std::make_tuple(
+			descent,
+			gradient,
+			f,
+			std::vector<std::vector<Vector3>>{}
+		);
+	}
 
 
 	std::tuple<

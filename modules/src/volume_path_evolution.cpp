@@ -65,6 +65,17 @@ namespace modules {
 		return std::make_tuple(curve_in.nodes, curve_in.segments, curve_in.segmentLengths);
 	}
 
+	Surface volume_path_evolution_surface(
+		const Surface& surface,
+		const double h,
+		const std::vector<Vector3>& descentDirections,
+		const scene_file::SceneObject& options
+	) {
+		// ToDo
+		std::cerr << "Volume path evolution for surfaces is not implemented yet." << std::endl;
+		std::abort();
+	}
+
 	void clamp_to_boundary(
 		std::vector<Vector3>& newNodes,
 		const std::vector<Vector3>& old_nodes,
@@ -92,6 +103,9 @@ namespace modules {
 			// if the target point is outside the volume (SDF > 0), find the intersection point.
 			if (options.use_backprojection && d_target > 0) {
 				// bisection search to find the parameter t in [0, 1] such that p + t*v is on the boundary.
+				// maybe just a linear interpolation (under the assumption of local linearity) would be sufficient...
+				// third option: Just half until INSIDE, doesn't have to be on the boundary.
+
 				double t_low = 0.0;
 				double t_high = 1.0;
 

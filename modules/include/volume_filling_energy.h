@@ -21,6 +21,16 @@ namespace modules {
 	std::tuple<
 		std::vector<Vector3>, // descent direction
 		std::vector<Vector3>, // gradient direction
+		double,              // energy
+		std::vector<std::vector<Vector3>> // medial axis (if applicable)
+	> volume_filling_energy_surface(
+		const Surface& surface,
+		const scene_file::SceneObject& options = {}
+	);
+
+	std::tuple<
+		std::vector<Vector3>, // descent direction
+		std::vector<Vector3>, // gradient direction
 		double, // energy
 		std::vector<std::vector<Vector3>> // medial axis
 	> dirichlet_energy(

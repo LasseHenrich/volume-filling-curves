@@ -19,6 +19,13 @@ namespace modules {
 		const scene_file::SceneObject& options
 	);
 
+	Surface volume_path_evolution_surface(
+		const Surface& surface,
+		const double h,
+		const std::vector<Vector3>& descentDirections,
+		const scene_file::SceneObject& options
+	);
+
 	void clamp_to_boundary(
 		std::vector<Vector3>& nodes,
 		const std::vector<Vector3>& old_nodes,
