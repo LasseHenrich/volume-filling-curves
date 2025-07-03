@@ -18,6 +18,10 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   add_definitions(-DNOMINMAX)
   add_definitions(-D_USE_MATH_DEFINES)
 
+  # geometrycentral's Eigen throws build errors without those two
+  add_definitions(-DEIGEN_NO_DEBUG)
+  add_definitions(-DEIGEN_DONT_PARALLELIZE)
+
   add_compile_options(/bigobj) # needed for large files, specifically for using openvdb in debug mode
 else()
   # unrecognized

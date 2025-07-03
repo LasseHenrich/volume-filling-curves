@@ -300,9 +300,9 @@ int main(int argc, char **argv) {
                 }
             }
 
-            polyscope::registerPointCloud("SDF", sdf_points)
-                ->addScalarQuantity("SDF value", sdf_values)
-                ->setEnabled(true);
+            auto sdf_vis = polyscope::registerPointCloud("SDF", sdf_points);
+            sdf_vis->addScalarQuantity("SDF value", sdf_values);
+            sdf_vis->setEnabled(false);
 
             scene.volume.sdf = sdf;
         }

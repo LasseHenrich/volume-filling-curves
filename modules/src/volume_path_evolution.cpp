@@ -83,7 +83,7 @@ namespace modules {
 
 		auto start = std::chrono::high_resolution_clock::now();
 
-		double step = 1.0f;
+		double step = 0.05f;
 
 		for (int i = 0; i < max_iters; i++) {
 			// 1. Move nodes according to the descent direction and clamp to boundary

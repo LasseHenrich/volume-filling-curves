@@ -235,7 +235,7 @@ namespace modules {
 				Eigen::Matrix3d R = rotationMatrix[segmentId];
 
 				// R.transpose() multiplication: Differenz wird auch Richtung von Kante projiziert
-				// andere zwei Richtungen haben keinen großen Einfluss
+				// andere zwei Richtungen haben keinen groï¿½en Einfluss
 				Eigen::Vector3<T> p0 = R.transpose() * (x0 - v0);
 				Eigen::Vector3<T> p1 = R.transpose() * (x1 - v1);
 
@@ -521,14 +521,82 @@ namespace modules {
 
 		auto func = TinyAD::scalar_function<3>(TinyAD::range(nodes.size()));
 
+		std::vector<Eigen::Matrix3d> rotationMatrix(numFaces);
+		std::vector<double> restAreas(numFaces);
+
 		if (options.use_length_energy) {
-			// ToDo
+			for (const auto& face : mesh->faces()) {
+				size_t i = face.getIndex();
+
+				std::vector<Vertex> vertices;
+				for (Vertex v : face.adjacentVertices()) {
+					vertices.push_back(v);
+				}
+				Vector3 v0 = geometry->vertexPositions[vertices[0]];
+				Vector3 v1 = geometry->vertexPositions[vertices[1]];
+				Vector3 v2 = geometry->vertexPositions[vertices[2]];
+
+				restAreas[i] = geometry->faceArea(face);
+
+				Vector3 n = geometry->faceNormal(face);
+				Vector3 u = normalize(v1 - v0);
+				Vector3 v = cross(n, u);
+
+				Eigen::Matrix3d R;
+				R << u.x, v.x, n.x,
+					u.y, v.y, n.y,
+					u.z, v.z, n.z;
+				rotationMatrix[i] = R;
+			}
+
+			func.add_elements<3>(TinyAD::range(mesh->nFaces()), [&](auto& element) -> TINYAD_SCALAR_TYPE(element) {
+				using T = TINYAD_SCALAR_TYPE(element);
+				int faceId = element.handle;
+
+				auto face = mesh->face(faceId);
+				std::vector<Vertex> vertices;
+				for (Vertex v : face.adjacentVertices()) {
+					vertices.push_back(v);
+				}
+
+				Eigen::Vector3<T> x0 = element.variables(vertices[0].getIndex());
+				Eigen::Vector3<T> x1 = element.variables(vertices[1].getIndex());
+				Eigen::Vector3<T> x2 = element.variables(vertices[2].getIndex());
+
+				Eigen::Matrix3d R = rotationMatrix[faceId];
+
+				Eigen::Vector3<T> p0_local = R.transpose() * x0;
+				Eigen::Vector3<T> p1_local = R.transpose() * x1;
+				Eigen::Vector3<T> p2_local = R.transpose() * x2;
+
+				Eigen::Vector2<T> edge1_2D = p1_local.head<2>() - p0_local.head<2>();
+				Eigen::Vector2<T> edge2_2D = p2_local.head<2>() - p0_local.head<2>();
+
+				T currentArea = 0.5 * abs(edge1_2D.x() * edge2_2D.y() - edge1_2D.y() * edge2_2D.x());
+
+				double restArea = restAreas[faceId];
+
+				return pow(currentArea, p) / (restArea * totalSurfaceArea);
+			});
 		}
 
 		auto dirichletEnd = std::chrono::high_resolution_clock::now();
 
 		// 3. Medial axis term
 		auto tetTopologyEnd = std::chrono::high_resolution_clock::now();
+
+		std::vector<double> nodeWeight(numNodes, 0.0);
+		for (const auto& vertex : mesh->vertices()) {
+			double totalArea = 0.0;
+			size_t faceCount = 0;
+			for (const auto& face : vertex.adjacentFaces()) {
+				totalArea += geometry->faceArea(face);
+				faceCount++;
+			}
+			if (faceCount > 0) {
+				nodeWeight[vertex.getIndex()] = totalArea / faceCount;
+			}
+		}
 
 		// 3.1 Node-based normals
 		std::vector<Vector3> nodeNormals(nodes.size());
@@ -563,7 +631,7 @@ namespace modules {
 				radius,
 				maxRadius,
 				alpha,
-				std::vector<double>(nodes.size(), 1.0), // uniform weight for all nodes. ToDo
+				nodeWeight,
 				q,
 				totalSurfaceArea
 			);

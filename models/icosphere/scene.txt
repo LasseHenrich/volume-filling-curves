@@ -1,12 +1,12 @@
 volume mesh icosphere.stl true 0.2 2.0
 radius 0.4
 rmax 1.2
-h 0.05
+h 0.1
 visualize_volume
-# filling_manifold icosphere_highres_elongated.stl
+filling_manifold icosphere_highres.stl
 
-filling_dimension 1
+filling_dimension 2
 
-use_volumetric_energy true
+use_volumetric_energy false
 use_backprojection false
 use_length_energy true
