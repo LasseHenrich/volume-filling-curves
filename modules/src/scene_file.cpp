@@ -63,6 +63,9 @@ namespace modules {
 		else if (key == "use_volumetric_energy") {
 			scene.use_volumetric_energy = (parts.size() < 2 || parts[1] == "true");
 		}
+        else if (key == "use_length_energy") {
+            scene.use_length_energy = (parts.size() < 2 || parts[1] == "true");
+        }
 		else if (key == "filling_dimension") {
 			if (parts.size() < 2) {
 				cerr << "Error: filling dimension not specified" << endl;

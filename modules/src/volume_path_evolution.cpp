@@ -98,7 +98,16 @@ namespace modules {
 				surface,
 				h
 			);*/
-			adjustEdgeLengths
+
+			/*RemeshOptions remeshOptions;
+			remeshOptions.targetEdgeLength = h;
+			adjustEdgeLengths(
+				*surface.mesh,
+				*surface.geometry,
+				remeshOptions
+			);
+			surface.geometry->refreshQuantities();*/
+			
 
 			// 3. Check for self-intersections
 			// ToDo

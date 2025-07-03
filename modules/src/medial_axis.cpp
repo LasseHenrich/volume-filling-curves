@@ -152,7 +152,7 @@ namespace modules {
 			r_min_plus_n = std::min(maximumBallRadius(x, n, i, maxRadius, nodes, kdtree), maxRadius);
 			r_min_minus_n = std::min(maximumBallRadius(x, -n, i, maxRadius, nodes, kdtree), maxRadius);
 			
-			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_minus_n * -n);
+			nodeMedialAxis[i].emplace_back(nodes[i] - r_min_minus_n * n);
 			nodeMedialAxis[i].emplace_back(nodes[i] + r_min_plus_n * n);
 		}
 

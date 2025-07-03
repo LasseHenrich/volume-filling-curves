@@ -207,47 +207,49 @@ namespace modules {
 		}
 
 		// 2. Dirichlet term (Penalize length)
-		func.add_elements<2>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
-			using T = TINYAD_SCALAR_TYPE(element);
-			int segmentId = element.handle;
+		if (options.use_length_energy) {
+			func.add_elements<2>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
+				using T = TINYAD_SCALAR_TYPE(element);
+				int segmentId = element.handle;
 
-			int _v0 = segments[segmentId][0];
-			int _v1 = segments[segmentId][1];
+				int _v0 = segments[segmentId][0];
+				int _v1 = segments[segmentId][1];
 
-			Eigen::Vector3<T> x0 = element.variables(_v0);
-			Eigen::Vector3<T> x1 = element.variables(_v1);
+				Eigen::Vector3<T> x0 = element.variables(_v0);
+				Eigen::Vector3<T> x1 = element.variables(_v1);
 
-			Eigen::Vector3d v0(
-				nodes[_v0].x,
-				nodes[_v0].y,
-				nodes[_v0].z
-			);
+				Eigen::Vector3d v0(
+					nodes[_v0].x,
+					nodes[_v0].y,
+					nodes[_v0].z
+				);
 
-			Eigen::Vector3d v1(
-				nodes[_v1].x,
-				nodes[_v1].y,
-				nodes[_v1].z
-			);
+				Eigen::Vector3d v1(
+					nodes[_v1].x,
+					nodes[_v1].y,
+					nodes[_v1].z
+				);
 
-			double edgeLen = segmentLengths[segmentId];
+				double edgeLen = segmentLengths[segmentId];
 
-			Eigen::Matrix3d R = rotationMatrix[segmentId];
+				Eigen::Matrix3d R = rotationMatrix[segmentId];
 
-			// R.transpose() multiplication: Differenz wird auch Richtung von Kante projiziert
-			// andere zwei Richtungen haben keinen groﬂen Einfluss
-			Eigen::Vector3<T> p0 = R.transpose() * (x0 - v0);
-			Eigen::Vector3<T> p1 = R.transpose() * (x1 - v1) + Eigen::Vector3d(edgeLen, 0, 0);
+				// R.transpose() multiplication: Differenz wird auch Richtung von Kante projiziert
+				// andere zwei Richtungen haben keinen groﬂen Einfluss
+				Eigen::Vector3<T> p0 = R.transpose() * (x0 - v0);
+				Eigen::Vector3<T> p1 = R.transpose() * (x1 - v1);
 
-			T dx = abs(p0(0) - p1(0));
-			T dy = abs(p0(1) - p1(1));
-			T dz = abs(p0(2) - p1(2));
+				T dx = abs(p0(0) - (p1(0) + edgeLen));
+				T dy = abs(p0(1) - p1(1));
+				T dz = abs(p0(2) - p1(2));
 
-			auto result = (
-				pow(pow(dx, 2) + pow(dy, 2) + pow(dz, 2), p / 2)
-				) / (edgeLen * totalCurveLength);
+				auto result = (
+					pow(pow(dx, 2) + pow(dy, 2) + pow(dz, 2), p / 2)
+					) / (edgeLen * totalCurveLength);
 
-			return result;
-		});
+				return result;
+			});
+		}
 
 		auto dirichletEnd = std::chrono::high_resolution_clock::now();
 
@@ -519,96 +521,9 @@ namespace modules {
 
 		auto func = TinyAD::scalar_function<3>(TinyAD::range(nodes.size()));
 
-		std::vector<Eigen::Matrix3d> rotationMatrix(numFaces);
-		std::vector<Vector3> faceNormals(numFaces);
-		std::vector<Vector3> faceTangents(numFaces);
-		std::vector<Vector3> faceBitangents(numFaces);
-
-		// 1. Compute face normals, tangents, and bitangents
-		for (size_t i = 0; i < numFaces; i++) {
-			Face face = mesh->face(i);
-
-			// normal
-			Vector3 n = geometry->faceNormal(face);
-
-			// tangent
-			// note that I might need to access a specific halfedge if the minimization needs a consistent notion of tangent vs. bitangent
-			Halfedge halfedge = face.halfedge(); // returns any one of the halfedges of the face
-			Vector3 t = geometry->halfedgeVector(halfedge);
-			t = normalize(t);
-
-			// bitangent (cross prodcut of normal and tangent)
-			Vector3 b = cross(n, t);
-
-			faceNormals[i] = n;
-			faceTangents[i] = t;
-			faceBitangents[i] = b;
-
-			Eigen::Matrix3d R;
-			R << t.x, b.x, n.x,
-				t.y, b.y, n.y,
-				t.z, b.z, n.z;
+		if (options.use_length_energy) {
+			// ToDo
 		}
-
-		// 2. Dirichlet term (Penalize area)
-		//func.add_elements<2>(TinyAD::range(numFaces), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
-		//	using T = TINYAD_SCALAR_TYPE(element);
-		//	int faceId = element.handle;
-
-		//	Face face = mesh->face(faceId);
-		//	auto vertices = face.adjacentVertices();
-		//	std::vector<Vertex> vertexVec;
-		//	for (Vertex v : vertices) {
-		//		vertexVec.push_back(v);
-		//	}
-		//	int _v0 = vertexVec[0].getIndex();
-		//	int _v1 = vertexVec[1].getIndex();
-		//	int _v2 = vertexVec[2].getIndex();
-
-		//	Eigen::Vector3<T> x0 = element.variables(_v0);
-		//	Eigen::Vector3<T> x1 = element.variables(_v1);
-		//	Eigen::Vector3<T> x2 = element.variables(_v2);
-
-		//	Eigen::Vector3d v0(
-		//		nodes[_v0].x,
-		//		nodes[_v0].y,
-		//		nodes[_v0].z
-		//	);
-
-		//	Eigen::Vector3d v1(
-		//		nodes[_v1].x,
-		//		nodes[_v1].y,
-		//		nodes[_v1].z
-		//	);
-
-		//	Eigen::Vector3d v2(
-		//		nodes[_v2].x,
-		//		nodes[_v2].y,
-		//		nodes[_v2].z
-		//	);
-
-		//	double faceArea = geometry->faceArea(face);
-
-		//	Eigen::Matrix3d R = rotationMatrix[faceId];
-
-		//	// Compute the area of the triangle formed by the vertices
-		// 
-		// ToDo: Project vertices onto Ebene of the triangle
-		// 
-		//	Eigen::Vector3<T> p0 = R.transpose() * (x0 - v0);
-		//	Eigen::Vector3<T> p1 = R.transpose() * (x1 - v1);
-		//	Eigen::Vector3<T> p2 = R.transpose() * (x2 - v2);
-
-		//	T dx = abs(p0(0) - p1(0)) + abs(p1(0) - p2(0)) + abs(p2(0) - p0(0));
-		//	T dy = abs(p0(1) - p1(1)) + abs(p1(1) - p2(1)) + abs(p2(1) - p0(1));
-		//	T dz = abs(p0(2) - p1(2)) + abs(p1(2) - p2(2)) + abs(p2(2) - p0(2));
-
-		//	auto result = (
-		//		pow(pow(dx, 2) + pow(dy, 2) + pow(dz, 2), p / 2)
-		//		) / (faceArea * totalSurfaceArea);
-
-		//	return result;
-		//});
 
 		auto dirichletEnd = std::chrono::high_resolution_clock::now();
 
@@ -648,7 +563,7 @@ namespace modules {
 				radius,
 				maxRadius,
 				alpha,
-				std::vector<double>(nodes.size(), 1.0), // uniform weight for all nodes
+				std::vector<double>(nodes.size(), 1.0), // uniform weight for all nodes. ToDo
 				q,
 				totalSurfaceArea
 			);

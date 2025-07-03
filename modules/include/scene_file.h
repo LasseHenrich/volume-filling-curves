@@ -57,6 +57,7 @@ namespace modules {
             double q = 2;
             bool use_backprojection = false;
             bool use_volumetric_energy = true;
+            bool use_length_energy = true;
 			int filling_dimension = 1; // 1 for curves, 2 for surfaces
 
 			SceneObject_Volume volume;
