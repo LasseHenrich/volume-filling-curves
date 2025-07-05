@@ -15,6 +15,7 @@
 #include <scene_file.h>
 #include <mesh_parser.h>
 #include <structures.h>
+#include <remesh_surface.h>
 
 using namespace modules;
 
@@ -130,7 +131,7 @@ void polyscopeCallback() {
         doWork();
     }
 
-    if (iteration % 200 == 0) {
+    if (iteration % 1000 == 0) {
         runLoop = false;
     }
 }
@@ -185,8 +186,9 @@ void initialize_surface(Surface& surface, const scene_file::SceneObject& scene) 
     }
 
 	surface = modules::file_to_geometrycentral_data(scene.fillingManifoldFileName);
+    modules::remesh_surface(surface, scene.h);
 
-    // we just read it two times, as the copying is difficult and I failed to find a solutino
+    // we just read it two times, as the copying is difficult and I failed to find a solution
 	initialSurface = modules::file_to_geometrycentral_data(scene.fillingManifoldFileName);
 
 	modules::PolyscopeMeshData currentSurface_polyscope = modules::geometrycentral_to_polyscope_data(&surface);

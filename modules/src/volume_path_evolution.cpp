@@ -6,7 +6,6 @@
 #include <remesh_curve.h>
 #include <remesh_surface.h>
 #include <openvdb/tools/Interpolation.h>
-#include "geometrycentral/surface/remeshing.h"
 
 using namespace geometrycentral;
 
@@ -30,7 +29,7 @@ namespace modules {
 
 		auto start = std::chrono::high_resolution_clock::now();
 
-		double step = 1.0f;
+		double step = options.step_size;
 		
 		for (int i = 0; i < max_iters; i++) {
 			// 1. Move nodes according to the descent direction and clamp to boundary
@@ -83,7 +82,7 @@ namespace modules {
 
 		auto start = std::chrono::high_resolution_clock::now();
 
-		double step = 0.05f;
+		double step = options.step_size;
 
 		for (int i = 0; i < max_iters; i++) {
 			// 1. Move nodes according to the descent direction and clamp to boundary
@@ -94,19 +93,10 @@ namespace modules {
 			surface.geometry->refreshQuantities();
 
 			// 2. Remesh
-			/*modules::remesh_surface(
+			modules::remesh_surface(
 				surface,
 				h
-			);*/
-
-			/*RemeshOptions remeshOptions;
-			remeshOptions.targetEdgeLength = h;
-			adjustEdgeLengths(
-				*surface.mesh,
-				*surface.geometry,
-				remeshOptions
 			);
-			surface.geometry->refreshQuantities();*/
 			
 
 			// 3. Check for self-intersections

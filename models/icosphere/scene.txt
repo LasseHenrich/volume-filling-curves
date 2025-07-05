@@ -2,6 +2,7 @@ volume mesh icosphere.stl true 0.2 2.0
 radius 0.4
 rmax 1.2
 h 0.1
+step_size 0.05
 visualize_volume
 filling_manifold icosphere_highres.stl
 
