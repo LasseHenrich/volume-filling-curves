@@ -151,7 +151,7 @@ void doWork() {
 void polyscopeCallback() {
     ImGui::Checkbox("run loop", &runLoop);
 
-    if (ImGui::Button("run 1 step") || ImGui::IsKeyDown(' ') || runLoop) {
+    if (ImGui::Button("run 1 step") || ImGui::IsKeyDown(ImGuiKey_Space) || runLoop) {
         doWork();
     }
 
@@ -251,7 +251,9 @@ int main(int argc, char **argv) {
     }
 
     polyscope::init();
-	polyscope::options::groundPlaneMode = polyscope::GroundPlaneMode::ShadowOnly;
+    ImPlot::CreateContext();
+
+    polyscope::options::groundPlaneMode = polyscope::GroundPlaneMode::ShadowOnly;
 
     polyscope::state::userCallback = polyscopeCallback;
     scene = modules::read_scene(args::get(inputFilename));
@@ -353,6 +355,8 @@ int main(int argc, char **argv) {
     }
 
     polyscope::show();
+
+    ImPlot::DestroyContext();
 
     return EXIT_SUCCESS;
 }

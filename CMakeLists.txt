@@ -30,7 +30,11 @@ endif()
 
 set(VCPKG_ROOT "C:/Users/lasse/Documents/GitHub/vcpkg")
 
+# Configure geometry-central to use vcpkg's Eigen
+set(GC_EIGEN_LOCATION "VCPKG" CACHE STRING "Use vcpkg Eigen")
+
 find_package(OpenVDB REQUIRED CONFIG)
+find_package(Eigen3 REQUIRED CONFIG)
 
 # Deps
 add_subdirectory(deps/geometry-central)
