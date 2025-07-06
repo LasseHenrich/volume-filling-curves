@@ -17,6 +17,8 @@
 #include <structures.h>
 #include <remesh_surface.h>
 
+#include "implot.h"
+
 using namespace modules;
 
 scene_file::SceneObject scene;
@@ -25,6 +27,9 @@ Surface currentSurface, restSurface, initialSurface; // 'current'Surface as surf
 
 int iteration = 0;
 bool runLoop = false;
+
+double radius_data_x[];
+double radius_data_y[];
 
 Curve formatVectorsForVisualization(
     const Curve& curve,
@@ -54,6 +59,24 @@ Curve formatVectorsForVisualization(
 	};
 }
 
+void visualize_medial_axis(std::vector<Vector3> nodes, std::vector<std::vector<Vector3>> medialAxis) {
+    std::vector<Vector3> medialAxisNodes;
+    for (const auto& axis : medialAxis) {
+        medialAxisNodes.insert(medialAxisNodes.end(), axis.begin(), axis.end());
+    }
+    polyscope::registerPointCloud("medial axis", medialAxisNodes)
+        ->setEnabled(false);
+
+    // plot distances as graph
+	for (int i = 0; i < medialAxis.size(); i++) {
+		Vector3 c_0 = medialAxis[i][0];
+		Vector3 c_1 = medialAxis[i][1];
+        
+		double l_0 = norm(c_0 - nodes[i]);
+		double l_1 = norm(c_1 - nodes[i]);
+    }
+}
+
 void doWork_curve() {
     restCurve.nodes = currentCurve.nodes;
     restCurve.segments = currentCurve.segments;
@@ -73,9 +96,9 @@ void doWork_curve() {
         scene
     );
 
-
     // visualization
     polyscope::registerCurveNetwork("curve", currentCurve.nodes, currentCurve.segments);
+	visualize_medial_axis(currentCurve.nodes, medialAxis);
 }
 
 void doWork_surface() {
@@ -100,6 +123,7 @@ void doWork_surface() {
 	// visualization
 	modules::PolyscopeMeshData currentSurface_polyscope = modules::geometrycentral_to_polyscope_data(&currentSurface);
     polyscope::registerSurfaceMesh("surface", currentSurface_polyscope.vertices, currentSurface_polyscope.faces);
+    visualize_medial_axis(currentSurface_polyscope.vertices, medialAxis);
 }
 
 void doWork() {
@@ -134,6 +158,10 @@ void polyscopeCallback() {
     if (iteration % 1000 == 0) {
         runLoop = false;
     }
+
+	if (ImPlot::BeginPlot("Radius")) {
+		ImPlot::EndPlot();
+	}
 }
 
 void initialize_curve(Curve& curve, const scene_file::SceneObject& scene) {

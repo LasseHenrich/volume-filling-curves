@@ -669,7 +669,7 @@ namespace modules {
 			descent,
 			gradient,
 			f,
-			std::vector<std::vector<Vector3>>{}
+			nodeMedialAxis
 		);
 	}
 

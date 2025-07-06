@@ -56,6 +56,30 @@ if(NOT tinyad_POPULATED)
   add_subdirectory(${tinyad_SOURCE_DIR} ${tinyad_BINARY_DIR})
 endif()
 
+# implot
+FetchContent_Declare(
+  implot
+  GIT_REPOSITORY https://github.com/epezent/implot.git
+  GIT_TAG master
+  GIT_SHALLOW TRUE
+  GIT_PROGRESS TRUE)
+FetchContent_MakeAvailable(implot)
+
+add_library(implot STATIC
+  ${implot_SOURCE_DIR}/implot.cpp
+  ${implot_SOURCE_DIR}/implot_items.cpp
+)
+
+# Make sure implot can find ImGui headers
+target_include_directories(implot PUBLIC 
+  "${CMAKE_CURRENT_SOURCE_DIR}/deps/polyscope/deps/imgui"
+)
+
+# Link implot with ImGui
+target_link_libraries(implot PUBLIC polyscope)
+
+
+
 # Add source to this project's executable.
 add_executable (volume-filling-curves "volume-filling-curves.cpp")
 
@@ -64,7 +88,8 @@ target_include_directories(volume-filling-curves PUBLIC ${CMAKE_CURRENT_SOURCE_D
 # add the args.hxx project which we use for command line args
 target_include_directories(volume-filling-curves PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/polyscope/deps/args")
 target_include_directories(volume-filling-curves PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/libigl/include")
-target_link_libraries(volume-filling-curves PUBLIC geometry-central polyscope modules TinyAD PRIVATE OpenVDB::openvdb)
+target_include_directories(volume-filling-curves PRIVATE "${implot_SOURCE_DIR}")
+target_link_libraries(volume-filling-curves PUBLIC geometry-central polyscope modules TinyAD implot PRIVATE OpenVDB::openvdb)
 
 target_include_directories(volume-filling-curves PRIVATE
     "${VCPKG_ROOT}/installed/x64-windows/include"
