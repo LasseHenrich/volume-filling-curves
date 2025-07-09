@@ -12,6 +12,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <cassert>
 
 #ifdef KNNCPP_FLANN
 

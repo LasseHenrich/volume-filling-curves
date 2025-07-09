@@ -1,6 +1,7 @@
 #include "medial_axis.h"
 #include <knn-cpp/knncpp.h>
 #include <chrono>
+#include <cassert>
 
 namespace modules {
 	int closestPointIndex(
