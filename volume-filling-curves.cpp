@@ -28,8 +28,9 @@ Surface currentSurface, restSurface, initialSurface; // 'current'Surface as surf
 int iteration = 0;
 bool runLoop = false;
 
-double radius_data_x[];
-double radius_data_y[];
+const size_t radius_data_size = 100;
+double radius_data[radius_data_size];
+double radius_steps[radius_data_size];
 
 Curve formatVectorsForVisualization(
     const Curve& curve,
@@ -59,7 +60,14 @@ Curve formatVectorsForVisualization(
 	};
 }
 
-void visualize_medial_axis(std::vector<Vector3> nodes, std::vector<std::vector<Vector3>> medialAxis) {
+void visualize_medial_axis(
+    std::vector<Vector3> nodes,
+    std::vector<std::vector<Vector3>> medialAxis,
+    float maxRadius
+) {
+    ImPlot::DestroyContext();
+
+	// 1. plot medial axis as point cloud
     std::vector<Vector3> medialAxisNodes;
     for (const auto& axis : medialAxis) {
         medialAxisNodes.insert(medialAxisNodes.end(), axis.begin(), axis.end());
@@ -67,14 +75,31 @@ void visualize_medial_axis(std::vector<Vector3> nodes, std::vector<std::vector<V
     polyscope::registerPointCloud("medial axis", medialAxisNodes)
         ->setEnabled(false);
 
-    // plot distances as graph
+    // 2. plot distances as graph
+	for (int i = 0; i < radius_data_size; i++) {
+		radius_data[i] = 0;
+		radius_steps[i] = (double)i / radius_data_size * maxRadius;
+	}
+
 	for (int i = 0; i < medialAxis.size(); i++) {
 		Vector3 c_0 = medialAxis[i][0];
 		Vector3 c_1 = medialAxis[i][1];
         
 		double l_0 = norm(c_0 - nodes[i]);
-		double l_1 = norm(c_1 - nodes[i]);
+        double l_1 = norm(c_1 - nodes[i]);
+
+		// evaluate index for radius data
+		int index_0 = (int)(l_0 / maxRadius * radius_data_size);
+        if (index_0 >= 0 && index_0 < radius_data_size) {
+            radius_data[index_0] += (1.0 / (2 * medialAxis.size()));
+        }
+		int index_1 = (int)(l_1 / maxRadius * radius_data_size);
+		if (index_1 >= 0 && index_1 < radius_data_size) {
+			radius_data[index_1] += (1.0 / (2 * medialAxis.size()));
+		}
     }
+
+    ImPlot::CreateContext();
 }
 
 void doWork_curve() {
@@ -98,13 +123,15 @@ void doWork_curve() {
 
     // visualization
     polyscope::registerCurveNetwork("curve", currentCurve.nodes, currentCurve.segments);
-	visualize_medial_axis(currentCurve.nodes, medialAxis);
+	visualize_medial_axis(restCurve.nodes, medialAxis, scene.rmax);
 }
 
 void doWork_surface() {
 	// ToDo: Clone the current surface to the rest surface
 	/*restSurface.vertexPositions = currentSurface.vertexPositions;
 	restSurface.mesh = currentSurface.mesh->clone();*/
+    // store original vertices
+	std::vector<Vector3> restVertices = modules::geometrycentral_to_polyscope_data(&currentSurface).vertices;
 
 	// 1. compute descent direction
 	auto [descent, gradient, energy, medialAxis] = modules::volume_filling_energy_surface(
@@ -123,7 +150,7 @@ void doWork_surface() {
 	// visualization
 	modules::PolyscopeMeshData currentSurface_polyscope = modules::geometrycentral_to_polyscope_data(&currentSurface);
     polyscope::registerSurfaceMesh("surface", currentSurface_polyscope.vertices, currentSurface_polyscope.faces);
-    visualize_medial_axis(currentSurface_polyscope.vertices, medialAxis);
+    visualize_medial_axis(restVertices, medialAxis, scene.rmax);
 }
 
 void doWork() {
@@ -160,6 +187,7 @@ void polyscopeCallback() {
     }
 
 	if (ImPlot::BeginPlot("Radius")) {
+        ImPlot::PlotBars("radius", radius_steps, radius_data, radius_data_size, scene.rmax / radius_data_size);
 		ImPlot::EndPlot();
 	}
 }
