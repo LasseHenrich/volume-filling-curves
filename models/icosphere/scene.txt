@@ -1,13 +1,13 @@
-volume mesh icosphere.stl true 0.2 2.0
-radius 0.4
-rmax 1.2
-h 0.1
+volume mesh icosphere_medium.stl true 0.2 5.0
+radius 0.1
+rmax 0.3
+h 0.05
 step_size 0.05
 visualize_volume
 filling_manifold icosphere_inner.stl
 
 filling_dimension 2
 
-use_volumetric_energy false
+use_volumetric_energy true
 use_backprojection false
 use_length_energy true

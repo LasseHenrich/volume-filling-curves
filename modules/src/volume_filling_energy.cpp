@@ -218,34 +218,15 @@ namespace modules {
 				Eigen::Vector3<T> x0 = element.variables(_v0);
 				Eigen::Vector3<T> x1 = element.variables(_v1);
 
-				Eigen::Vector3d v0(
-					nodes[_v0].x,
-					nodes[_v0].y,
-					nodes[_v0].z
-				);
+				T dx = abs(x0(0) - x1(0));
+				T dy = abs(x0(1) - x1(1));
+				T dz = abs(x0(2) - x1(2));
 
-				Eigen::Vector3d v1(
-					nodes[_v1].x,
-					nodes[_v1].y,
-					nodes[_v1].z
-				);
-
+				T sqrdCurrentLength = dx * dx + dy * dy + dz * dz;
 				double edgeLen = segmentLengths[segmentId];
 
-				Eigen::Matrix3d R = rotationMatrix[segmentId];
-
-				// R.transpose() multiplication: Differenz wird auch Richtung von Kante projiziert
-				// andere zwei Richtungen haben keinen gro�en Einfluss
-				Eigen::Vector3<T> p0 = R.transpose() * (x0 - v0);
-				Eigen::Vector3<T> p1 = R.transpose() * (x1 - v1);
-
-				T dx = abs(p0(0) - (p1(0) + edgeLen));
-				T dy = abs(p0(1) - p1(1));
-				T dz = abs(p0(2) - p1(2));
-
-				auto result = (
-					pow(pow(dx, 2) + pow(dy, 2) + pow(dz, 2), p / 2)
-					) / (edgeLen * totalCurveLength);
+				auto result = pow(sqrdCurrentLength, p / 2)
+					/ (edgeLen * totalCurveLength);
 
 				return result;
 			});
@@ -518,7 +499,7 @@ namespace modules {
 		for (const auto& face : mesh->faces()) {
 			totalSurfaceArea += geometry->faceArea(face);
 		}
-
+			
 		auto func = TinyAD::scalar_function<3>(TinyAD::range(nodes.size()));
 
 		std::vector<Eigen::Matrix3d> rotationMatrix(numFaces);
@@ -563,20 +544,22 @@ namespace modules {
 				Eigen::Vector3<T> x1 = element.variables(vertices[1].getIndex());
 				Eigen::Vector3<T> x2 = element.variables(vertices[2].getIndex());
 
-				Eigen::Matrix3d R = rotationMatrix[faceId];
+				Eigen::Vector3<T> edge1 = x1 - x0;
+				Eigen::Vector3<T> edge2 = x2 - x0;
 
-				Eigen::Vector3<T> p0_local = R.transpose() * x0;
-				Eigen::Vector3<T> p1_local = R.transpose() * x1;
-				Eigen::Vector3<T> p2_local = R.transpose() * x2;
-
-				Eigen::Vector2<T> edge1_2D = p1_local.head<2>() - p0_local.head<2>();
-				Eigen::Vector2<T> edge2_2D = p2_local.head<2>() - p0_local.head<2>();
-
-				T currentArea = 0.5 * abs(edge1_2D.x() * edge2_2D.y() - edge1_2D.y() * edge2_2D.x());
+				Eigen::Vector3<T> crossProduct = Eigen::Vector3<T>(
+					edge1(1) * edge2(2) - edge1(2) * edge2(1),
+					edge1(2) * edge2(0) - edge1(0) * edge2(2),
+					edge1(0) * edge2(1) - edge1(1) * edge2(0)
+				);
+				T crossProductNormSqrd = pow(crossProduct(0), 2)
+					+ pow(crossProduct(1), 2)
+					+ pow(crossProduct(2), 2);
+				T currentAreaSqrd = 0.25 * crossProductNormSqrd;
 
 				double restArea = restAreas[faceId];
 
-				return pow(currentArea, p) / (restArea * totalSurfaceArea);
+				return pow(currentAreaSqrd, p / 2) / (restArea * totalSurfaceArea);
 			});
 		}
 
