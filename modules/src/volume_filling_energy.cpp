@@ -17,6 +17,31 @@ namespace modules {
 		return (a < b) ? a : b;
 	}
 
+	template<typename T>
+	T max(T a, T b) {
+		return (a > b) ? a : b;
+	}
+
+	template<typename T>
+	Eigen::Vector3<T> cross(
+		const Eigen::Vector3<T>& a,
+		const Eigen::Vector3<T>& b
+	) {
+		return Eigen::Vector3<T>(
+			a(1) * b(2) - a(2) * b(1),
+			a(2) * b(0) - a(0) * b(2),
+			a(0) * b(1) - a(1) * b(0)
+		);
+	}
+
+	template<typename T>
+	T dot(
+		const Eigen::Vector3<T>& a,
+		const Eigen::Vector3<T>& b
+	) {
+		return a(0) * b(0) + a(1) * b(1) + a(2) * b(2);
+	}
+
 	const double branchRatio = std::sqrt(std::sqrt(2));
 
 	template<typename Element>
@@ -38,15 +63,29 @@ namespace modules {
 
 		auto _c_0 = nodeMedialAxis[nodeId][0];
 		auto _c_1 = nodeMedialAxis[nodeId][1];
+		auto _c_2 = nodeMedialAxis[nodeId][2];
+		auto _c_3 = nodeMedialAxis[nodeId][3];
 
 		Eigen::Vector3d c_0(_c_0.x, _c_0.y, _c_0.z);
 		Eigen::Vector3d c_1(_c_1.x, _c_1.y, _c_1.z);
+		Eigen::Vector3d c_2(_c_2.x, _c_2.y, _c_2.z);
+		Eigen::Vector3d c_3(_c_3.x, _c_3.y, _c_3.z);
 
-		T l_0 = (pos - c_0).norm();
-		T l_1 = (pos - c_1).norm();
+		Eigen::Vector3<T> u_0 = pos - c_0;
+		Eigen::Vector3<T> u_1 = pos - c_1;
+		Eigen::Vector3<T> u_2 = pos - c_2;
+		Eigen::Vector3<T> u_3 = pos - c_3;
 
+		T l_0 = u_0.norm();
+		T l_1 = u_1.norm();
+		T l_2 = u_2.norm();
+		T l_3 = u_3.norm();
 
-		if (options.volume.volumeType == scene_file::VolumeType::MESH && options.volume.convert_to_sdf && options.use_volumetric_energy) {
+		auto add_volumetric_energy = [&]() -> void {
+			if (options.volume.volumeType != scene_file::VolumeType::MESH || !options.volume.convert_to_sdf || !options.use_volumetric_energy) {
+				return;
+			}
+
 			// Get current passive position for sampling
 			openvdb::Vec3d world_pos(TinyAD::to_passive(pos(0)),
 				TinyAD::to_passive(pos(1)),
@@ -68,11 +107,22 @@ namespace modules {
 			double grad_y = (sdf_py - sdf_my) / (2.0 * h);
 			double grad_z = (sdf_pz - sdf_mz) / (2.0 * h);
 
+			double grad_length = std::sqrt(grad_x * grad_x + grad_y * grad_y + grad_z * grad_z);
+			if (grad_length < 1e-6) {
+				return;
+			}
+
+			// gradient should already have length 1,
+			// but we normalize it just in case
+			grad_x /= grad_length;
+			grad_y /= grad_length;
+			grad_z /= grad_length;
+
 			// Create differentiable SDF using linear approximation
-			/*T sdf_approx_at_node = T(sdf_value) +
+			T sdf_approx_at_node = T(sdf_value) +
 				T(grad_x) * (pos(0) - T(world_pos[0])) +
 				T(grad_y) * (pos(1) - T(world_pos[1])) +
-				T(grad_z) * (pos(2) - T(world_pos[2]));*/
+				T(grad_z) * (pos(2) - T(world_pos[2]));
 
 			// we don't just wsSample at c_0 and c_1, as this would be insensitive
 			// to "jumping" across very tight surface regions.
@@ -90,22 +140,59 @@ namespace modules {
 				T(grad_y) * (c_1(1) - T(world_pos[1])) +
 				T(grad_z) * (c_1(2) - T(world_pos[2]));
 
-			// backproject... note that I'm not sure whether this is the
-			// correct way to backproject
-			T overshoot_0 = sdf_approx_at_c_0 - radius;
-			if (overshoot_0 > 0) {
-				l_0 = min(l_0 - overshoot_0, (T)maxRadius);
+			T sdf_approx_at_c_2 = T(sdf_value) +
+				T(grad_x) * (c_2(0) - T(world_pos[0])) +
+				T(grad_y) * (c_2(1) - T(world_pos[1])) +
+				T(grad_z) * (c_2(2) - T(world_pos[2]));
+
+			T sdf_approx_at_c_3 = T(sdf_value) +
+				T(grad_x) * (c_3(0) - T(world_pos[0])) +
+				T(grad_y) * (c_3(1) - T(world_pos[1])) +
+				T(grad_z) * (c_3(2) - T(world_pos[2]));
+
+			// note that the gradient already has length 1
+			Eigen::Vector3<T> closest_surface_point = pos - // sdf is negative inside, so '-'
+				sdf_approx_at_node * Eigen::Vector3<T>(grad_x, grad_y, grad_z);
+
+			Eigen::Vector3<T> v = pos - closest_surface_point;
+			if (sdf_approx_at_node > 0) {
+				v = -v; // flip direction if outside
 			}
-			T overshoot_1 = sdf_approx_at_c_1 - radius;
-			if (overshoot_1 > 0) {
-				l_1 = min(l_1 - overshoot_1, (T)maxRadius);
-			}
-		}
+
+			auto backproject = [&](T sdf_at_c, Eigen::Vector3<T> u, T& l) {
+				T b = sdf_at_c - radius;
+				if (b <= 0) {
+					return;
+				}
+
+				T b_tilde = (b * u.norm() * v.norm()) / dot(u, v);
+				if (dot(u, v) <= 0) { // if non-positive, the angle is obtuse, so u is not pointing towards the surface
+					return;
+				}
+
+				l = max(
+					min(l - b_tilde, (T)maxRadius),
+					(T)0
+				);
+
+				// not covered yet: what happens if c is outside the "outer hull"?
+				// I added the max(..., (T)0) to prevent negative lengths, which at least prevents crashing for now..
+			};
+
+			backproject(sdf_approx_at_c_0, u_0, l_0);
+			backproject(sdf_approx_at_c_1, u_1, l_1);
+			backproject(sdf_approx_at_c_2, u_2, l_2);
+			backproject(sdf_approx_at_c_3, u_3, l_3);
+		};
+
+		add_volumetric_energy();
 
 		auto result = alpha * nodeWeight[nodeId] * (
 			pow(
 				pow(l_0, 2) +
-				pow(l_1, 2),
+				pow(l_1, 2) +
+				pow(l_2, 2) +
+				pow(l_3, 2),
 			q / 2)
 			) / totalCurveLength;
 
@@ -547,11 +634,7 @@ namespace modules {
 				Eigen::Vector3<T> edge1 = x1 - x0;
 				Eigen::Vector3<T> edge2 = x2 - x0;
 
-				Eigen::Vector3<T> crossProduct = Eigen::Vector3<T>(
-					edge1(1) * edge2(2) - edge1(2) * edge2(1),
-					edge1(2) * edge2(0) - edge1(0) * edge2(2),
-					edge1(0) * edge2(1) - edge1(1) * edge2(0)
-				);
+				Eigen::Vector3<T> crossProduct = cross(edge1, edge2);
 				T crossProductNormSqrd = pow(crossProduct(0), 2)
 					+ pow(crossProduct(1), 2)
 					+ pow(crossProduct(2), 2);
