@@ -1,0 +1,6 @@
+volume mesh testing.stl true 0.1 5.0
+radius 0.2
+rmax 0.6
+h 0.03
+visualize_volume
+use_backprojection

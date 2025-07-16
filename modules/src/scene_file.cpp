@@ -42,8 +42,8 @@ namespace modules {
         }
         else if (key == "radius") {
             scene.radius = stod(parts[1]);
-            scene.h = scene.radius * igl::PI / 20; // Define h after radius !!!
-            scene.rmax = scene.radius * 5; // Define rmax after radius !!!
+            //scene.h = scene.radius * igl::PI / 20; // Define h after radius !!!
+            //scene.rmax = scene.radius * 5; // Define rmax after radius !!!
         }
         else if (key == "h") {
             scene.h = stod(parts[1]);

@@ -61,25 +61,28 @@ namespace modules {
 		int nodeId = element.handle;
 		Eigen::Vector3<T> pos = element.variables(nodeId);
 
-		auto _c_0 = nodeMedialAxis[nodeId][0];
-		auto _c_1 = nodeMedialAxis[nodeId][1];
-		auto _c_2 = nodeMedialAxis[nodeId][2];
-		auto _c_3 = nodeMedialAxis[nodeId][3];
+		const auto& medialAxisPoints = nodeMedialAxis[nodeId];
+		const size_t numPoints = medialAxisPoints.size();
 
-		Eigen::Vector3d c_0(_c_0.x, _c_0.y, _c_0.z);
-		Eigen::Vector3d c_1(_c_1.x, _c_1.y, _c_1.z);
-		Eigen::Vector3d c_2(_c_2.x, _c_2.y, _c_2.z);
-		Eigen::Vector3d c_3(_c_3.x, _c_3.y, _c_3.z);
+		std::vector<Eigen::Vector3d> centers;
+		std::vector<Eigen::Vector3<T>> u_vectors;
+		std::vector<T> lengths;
 
-		Eigen::Vector3<T> u_0 = pos - c_0;
-		Eigen::Vector3<T> u_1 = pos - c_1;
-		Eigen::Vector3<T> u_2 = pos - c_2;
-		Eigen::Vector3<T> u_3 = pos - c_3;
+		centers.reserve(numPoints);
+		u_vectors.reserve(numPoints);
+		lengths.reserve(numPoints);
 
-		T l_0 = u_0.norm();
-		T l_1 = u_1.norm();
-		T l_2 = u_2.norm();
-		T l_3 = u_3.norm();
+		for (size_t i = 0; i < numPoints; ++i) {
+			const auto& point = medialAxisPoints[i];
+			Eigen::Vector3d c(point.x, point.y, point.z);
+			centers.push_back(c);
+
+			Eigen::Vector3<T> u = pos - c;
+			u_vectors.push_back(u);
+
+			T l = u.norm();
+			lengths.push_back(l);
+		}
 
 		auto add_volumetric_energy = [&]() -> void {
 			if (options.volume.volumeType != scene_file::VolumeType::MESH || !options.volume.convert_to_sdf || !options.use_volumetric_energy) {
@@ -130,25 +133,17 @@ namespace modules {
 			// assuming a linear gradient field around the current position.
 			// (Also, TinyAD needs a notion of a gradient, which is why would need to
 			// compute it anyway.)
-			T sdf_approx_at_c_0 = T(sdf_value) +
-				T(grad_x) * (c_0(0) - T(world_pos[0])) +
-				T(grad_y) * (c_0(1) - T(world_pos[1])) +
-				T(grad_z) * (c_0(2) - T(world_pos[2]));
+			std::vector<T> sdf_approx_at_centers;
+			sdf_approx_at_centers.reserve(numPoints);
 
-			T sdf_approx_at_c_1 = T(sdf_value) +
-				T(grad_x) * (c_1(0) - T(world_pos[0])) +
-				T(grad_y) * (c_1(1) - T(world_pos[1])) +
-				T(grad_z) * (c_1(2) - T(world_pos[2]));
-
-			T sdf_approx_at_c_2 = T(sdf_value) +
-				T(grad_x) * (c_2(0) - T(world_pos[0])) +
-				T(grad_y) * (c_2(1) - T(world_pos[1])) +
-				T(grad_z) * (c_2(2) - T(world_pos[2]));
-
-			T sdf_approx_at_c_3 = T(sdf_value) +
-				T(grad_x) * (c_3(0) - T(world_pos[0])) +
-				T(grad_y) * (c_3(1) - T(world_pos[1])) +
-				T(grad_z) * (c_3(2) - T(world_pos[2]));
+			for (size_t i = 0; i < numPoints; ++i) {
+				const auto& c = centers[i];
+				T sdf_approx = T(sdf_value) +
+					T(grad_x) * (c(0) - T(world_pos[0])) +
+					T(grad_y) * (c(1) - T(world_pos[1])) +
+					T(grad_z) * (c(2) - T(world_pos[2]));
+				sdf_approx_at_centers.push_back(sdf_approx);
+			}
 
 			// note that the gradient already has length 1
 			Eigen::Vector3<T> closest_surface_point = pos - // sdf is negative inside, so '-'
@@ -179,21 +174,20 @@ namespace modules {
 				// I added the max(..., (T)0) to prevent negative lengths, which at least prevents crashing for now..
 			};
 
-			backproject(sdf_approx_at_c_0, u_0, l_0);
-			backproject(sdf_approx_at_c_1, u_1, l_1);
-			backproject(sdf_approx_at_c_2, u_2, l_2);
-			backproject(sdf_approx_at_c_3, u_3, l_3);
+			for (size_t i = 0; i < numPoints; ++i) {
+				backproject(sdf_approx_at_centers[i], u_vectors[i], lengths[i]);
+			}
 		};
 
 		add_volumetric_energy();
 
+		T sum_of_squared_lengths = T(0);
+		for (size_t i = 0; i < numPoints; ++i) {
+			sum_of_squared_lengths += pow(lengths[i], 2);
+		}
+
 		auto result = alpha * nodeWeight[nodeId] * (
-			pow(
-				pow(l_0, 2) +
-				pow(l_1, 2) +
-				pow(l_2, 2) +
-				pow(l_3, 2),
-			q / 2)
+			pow(sum_of_squared_lengths, q / 2)
 			) / totalCurveLength;
 
 		return result;

@@ -1,5 +1,0 @@
-volume mesh 98480_centered.ply true 1.0 3.0
-radius 3
-rmax 9
-h 0.45
-visualize_volume

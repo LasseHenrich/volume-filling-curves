@@ -1,4 +1,0 @@
-volume mesh icosphere.ply false
-radius 1
-rmax 3
-h 0.15
