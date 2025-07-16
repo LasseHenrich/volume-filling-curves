@@ -165,4 +165,112 @@ namespace modules {
 
 		return nodeMedialAxis;
 	}
+
+	void backproject_centers_to_hull(
+		std::vector<std::vector<Vector3>>& nodeMedialAxis,
+		const std::vector<Vector3>& nodes,
+		openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler>& sampler,
+		double radius,
+		double maxRadius
+	) {
+		const size_t numNodes = nodeMedialAxis.size();
+
+		#pragma omp parallel for
+		for (int nodeId = 0; nodeId < numNodes; ++nodeId) {
+			Vector3 pos = nodes[nodeId];
+
+			std::vector<Vector3>& centers = nodeMedialAxis[nodeId];
+			const size_t numPoints = centers.size();
+
+			std::vector<Vector3> u_vectors;
+			std::vector<double> lengths;
+
+			u_vectors.reserve(numPoints);
+			lengths.reserve(numPoints);
+
+			for (size_t i = 0; i < numPoints; ++i) {
+				Vector3 u = pos - centers[i];
+				u_vectors.push_back(u);
+				lengths.push_back(norm(u));
+			}
+
+			openvdb::Vec3d pos_ovdb(pos.x, pos.y, pos.z);
+
+			// Sample SDF value at current position
+			double sdf_value = sampler.wsSample(pos_ovdb);
+
+			// Compute gradient using finite differences
+			const double h = 1e-6;
+			double sdf_px = sampler.wsSample(pos_ovdb + openvdb::Vec3d(h, 0, 0));
+			double sdf_mx = sampler.wsSample(pos_ovdb - openvdb::Vec3d(h, 0, 0));
+			double sdf_py = sampler.wsSample(pos_ovdb + openvdb::Vec3d(0, h, 0));
+			double sdf_my = sampler.wsSample(pos_ovdb - openvdb::Vec3d(0, h, 0));
+			double sdf_pz = sampler.wsSample(pos_ovdb + openvdb::Vec3d(0, 0, h));
+			double sdf_mz = sampler.wsSample(pos_ovdb - openvdb::Vec3d(0, 0, h));
+
+			double grad_x = (sdf_px - sdf_mx) / (2.0 * h);
+			double grad_y = (sdf_py - sdf_my) / (2.0 * h);
+			double grad_z = (sdf_pz - sdf_mz) / (2.0 * h);
+
+			double grad_length = std::sqrt(grad_x * grad_x + grad_y * grad_y + grad_z * grad_z);
+			if (grad_length < 1e-6) {
+				continue;
+			}
+
+			// gradient should already have length 1,
+			// but we normalize it just in case
+			grad_x /= grad_length;
+			grad_y /= grad_length;
+			grad_z /= grad_length;
+
+			std::vector<double> sdf_approx_at_centers;
+			sdf_approx_at_centers.reserve(numPoints);
+
+			for (size_t i = 0; i < numPoints; ++i) {
+				const auto& c = centers[i];
+				double sdf_approx = sdf_value +
+					grad_x * (c.x - pos.x) +
+					grad_y * (c.y - pos.y) +
+					grad_z * (c.z - pos.z);
+				sdf_approx_at_centers.push_back(sdf_approx);
+			}
+
+			// note that the gradient already has length 1
+			Vector3 closest_surface_point = pos - // sdf is negative inside, so '-'
+				sdf_approx_at_centers[0] * Vector3{ grad_x, grad_y, grad_z };
+
+			Vector3 v = pos - closest_surface_point;
+			if (sdf_value > 0) {
+				v = -v; // flip direction if outside
+			}
+
+			auto backproject = [&](double sdf_at_c, Vector3 u, double l) -> double {
+				double b = sdf_at_c - radius;
+				if (b <= 0) {
+					return l;
+				}
+
+				double b_tilde = (b * u.norm() * v.norm()) / dot(u, v);
+				if (dot(u, v) <= 0) { // if non-positive, the angle is obtuse, so u is not pointing towards the surface
+					return l;
+				}
+
+				return std::max(
+					std::min(l - b_tilde, maxRadius),
+					0.0
+				);
+			};
+
+			for (size_t i = 0; i < numPoints; ++i) {
+				double prev_length = lengths[i];
+				double new_length = backproject(sdf_approx_at_centers[i], u_vectors[i], lengths[i]);
+
+				// move the center point to the new position
+				if (std::abs(new_length - prev_length) > 1e-6) {
+					Vector3 u = u_vectors[i];
+					nodeMedialAxis[nodeId][i] = pos - new_length * (u / u.norm());
+				}
+			}
+		}
+	}
 }

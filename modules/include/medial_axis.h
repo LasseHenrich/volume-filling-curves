@@ -1,5 +1,7 @@
 #include <vector>
 #include <geometrycentral/utilities/vector3.h>
+#include <openvdb/tools/Interpolation.h>
+#include <openvdb/tools/GridOperators.h>
 
 using namespace geometrycentral;
 
@@ -21,5 +23,13 @@ namespace modules {
 		const std::vector<Vector3>& nodes,
 		const std::vector<Vector3>& nodeNormals,
 		const double maxRadius
+	);
+
+	void backproject_centers_to_hull(
+		std::vector<std::vector<Vector3>>& nodeMedialAxis,
+		const std::vector<Vector3>& nodes,
+		openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler>& sampler,
+		double radius,
+		double maxRadius
 	);
 }
