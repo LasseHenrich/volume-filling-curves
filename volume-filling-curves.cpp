@@ -32,6 +32,8 @@ const size_t radius_data_size = 100;
 double radius_data[radius_data_size];
 double radius_steps[radius_data_size];
 
+int max_iteration = 300;
+
 Curve formatVectorsForVisualization(
     const Curve& curve,
     std::vector<Vector3>& directions
@@ -176,13 +178,15 @@ void doWork() {
 }
 
 void polyscopeCallback() {
+	ImGui::SliderInt("max iteration", &max_iteration, 1, 1000);
     ImGui::Checkbox("run loop", &runLoop);
+	ImGui::Text(("current iteration: " + std::to_string(iteration)).c_str());
 
     if (ImGui::Button("run 1 step") || ImGui::IsKeyDown(ImGuiKey_Space) || runLoop) {
         doWork();
     }
 
-    if (iteration % 1000 == 0) {
+    if (iteration == max_iteration) {
         runLoop = false;
     }
 
