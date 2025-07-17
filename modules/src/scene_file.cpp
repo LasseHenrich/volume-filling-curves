@@ -54,6 +54,9 @@ namespace modules {
         else if (key == "q") {
             scene.q = stod(parts[1]);
         }
+        else if (key == "alpha") {
+			scene.alpha = stod(parts[1]);
+        }
         else if (key == "step_size") {
 			scene.step_size = stod(parts[1]);
         }

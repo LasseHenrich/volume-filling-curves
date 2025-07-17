@@ -1,4 +1,4 @@
-volume mesh 98480_centered_small.stl true 1.0 3.0
+volume mesh 98480_centered_tiny.stl true 0.05 5.0
 
 visualize_volume
 
@@ -7,9 +7,9 @@ use_backprojection false
 use_length_energy true
 
 ## Surface
-radius 0.12
-rmax 0.36
+radius 0.18
+rmax 0.4
 h 0.05
-step_size 0.15
-filling_manifold ../icosphere/icosphere_inner.stl
+step_size 1.0
+filling_manifold ../testing/icosphere_inner_smaller.stl
 filling_dimension 2

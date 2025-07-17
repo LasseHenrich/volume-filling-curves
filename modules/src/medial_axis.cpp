@@ -223,6 +223,10 @@ namespace modules {
 			grad_y /= grad_length;
 			grad_z /= grad_length;
 
+			// we don't just wsSample at c_0 and c_1, as this would be insensitive
+			// to "jumping" across very tight surface regions.
+			// Instead, we use the local gradient to approximate the SDF at c_0 and c_1,
+			// assuming a linear gradient field around the current position.
 			std::vector<double> sdf_approx_at_centers;
 			sdf_approx_at_centers.reserve(numPoints);
 
@@ -237,7 +241,7 @@ namespace modules {
 
 			// note that the gradient already has length 1
 			Vector3 closest_surface_point = pos - // sdf is negative inside, so '-'
-				sdf_approx_at_centers[0] * Vector3{ grad_x, grad_y, grad_z };
+				sdf_value * Vector3{ grad_x, grad_y, grad_z };
 
 			Vector3 v = pos - closest_surface_point;
 			if (sdf_value > 0) {
@@ -257,8 +261,11 @@ namespace modules {
 
 				return std::max(
 					std::min(l - b_tilde, maxRadius),
-					0.0
+					radius * 0.5
 				);
+
+				// not covered yet: what happens if c is outside the "outer hull"?
+				// I added the max(..., radius) to at least prevent crashing for now..
 			};
 
 			for (size_t i = 0; i < numPoints; ++i) {

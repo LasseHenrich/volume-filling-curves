@@ -64,120 +64,129 @@ namespace modules {
 		const auto& medialAxisPoints = nodeMedialAxis[nodeId];
 		const size_t numPoints = medialAxisPoints.size();
 
-		//std::vector<Eigen::Vector3d> centers;
+		std::vector<Eigen::Vector3d> centers;
 		std::vector<Eigen::Vector3<T>> u_vectors;
 		std::vector<T> lengths;
 
-		//centers.reserve(numPoints);
-		//u_vectors.reserve(numPoints);
+		centers.reserve(numPoints);
+		u_vectors.reserve(numPoints);
 		lengths.reserve(numPoints);
 
 		for (size_t i = 0; i < numPoints; ++i) {
 			const auto& point = medialAxisPoints[i];
 			Eigen::Vector3d c(point.x, point.y, point.z);
-			//centers.push_back(c);
+			centers.push_back(c);
 
 			Eigen::Vector3<T> u = pos - c;
-			//u_vectors.push_back(u);
+			u_vectors.push_back(u);
+
+			if (u.norm() < 1e-6) {
+				std::cout << "Warning: Zero vector encountered at node " << nodeId
+					<< " for medial axis point " << i << std::endl;
+			}
+			else if (u.norm() > maxRadius + 1e-6) {
+				std::cout << "Warning: Vector length exceeds maxRadius at node " << nodeId
+					<< ". Norm is " << u.norm() << ", maxRadius is " << maxRadius << std::endl;
+			}
 
 			T l = u.norm();
 			lengths.push_back(l);
 		}
 
-		//auto add_volumetric_energy = [&]() -> void {
-		//	if (options.volume.volumeType != scene_file::VolumeType::MESH || !options.volume.convert_to_sdf || !options.use_volumetric_energy) {
-		//		return;
-		//	}
+		auto add_volumetric_energy = [&]() -> void {
+			if (options.volume.volumeType != scene_file::VolumeType::MESH || !options.volume.convert_to_sdf || !options.use_volumetric_energy) {
+				return;
+			}
 
-		//	// Get current passive position for sampling
-		//	openvdb::Vec3d world_pos(TinyAD::to_passive(pos(0)),
-		//		TinyAD::to_passive(pos(1)),
-		//		TinyAD::to_passive(pos(2)));
+			// Get current passive position for sampling
+			openvdb::Vec3d world_pos(TinyAD::to_passive(pos(0)),
+				TinyAD::to_passive(pos(1)),
+				TinyAD::to_passive(pos(2)));
 
-		//	// Sample SDF value at current position
-		//	double sdf_value = sampler.wsSample(world_pos);
+			// Sample SDF value at current position
+			double sdf_value = sampler.wsSample(world_pos);
 
-		//	// Compute gradient using finite differences
-		//	const double h = 1e-6;
-		//	double sdf_px = sampler.wsSample(world_pos + openvdb::Vec3d(h, 0, 0));
-		//	double sdf_mx = sampler.wsSample(world_pos - openvdb::Vec3d(h, 0, 0));
-		//	double sdf_py = sampler.wsSample(world_pos + openvdb::Vec3d(0, h, 0));
-		//	double sdf_my = sampler.wsSample(world_pos - openvdb::Vec3d(0, h, 0));
-		//	double sdf_pz = sampler.wsSample(world_pos + openvdb::Vec3d(0, 0, h));
-		//	double sdf_mz = sampler.wsSample(world_pos - openvdb::Vec3d(0, 0, h));
+			// Compute gradient using finite differences
+			const double h = 1e-6;
+			double sdf_px = sampler.wsSample(world_pos + openvdb::Vec3d(h, 0, 0));
+			double sdf_mx = sampler.wsSample(world_pos - openvdb::Vec3d(h, 0, 0));
+			double sdf_py = sampler.wsSample(world_pos + openvdb::Vec3d(0, h, 0));
+			double sdf_my = sampler.wsSample(world_pos - openvdb::Vec3d(0, h, 0));
+			double sdf_pz = sampler.wsSample(world_pos + openvdb::Vec3d(0, 0, h));
+			double sdf_mz = sampler.wsSample(world_pos - openvdb::Vec3d(0, 0, h));
 
-		//	double grad_x = (sdf_px - sdf_mx) / (2.0 * h);
-		//	double grad_y = (sdf_py - sdf_my) / (2.0 * h);
-		//	double grad_z = (sdf_pz - sdf_mz) / (2.0 * h);
+			double grad_x = (sdf_px - sdf_mx) / (2.0 * h);
+			double grad_y = (sdf_py - sdf_my) / (2.0 * h);
+			double grad_z = (sdf_pz - sdf_mz) / (2.0 * h);
 
-		//	double grad_length = std::sqrt(grad_x * grad_x + grad_y * grad_y + grad_z * grad_z);
-		//	if (grad_length < 1e-6) {
-		//		return;
-		//	}
+			double grad_length = std::sqrt(grad_x * grad_x + grad_y * grad_y + grad_z * grad_z);
+			if (grad_length < 1e-6) {
+				return;
+			}
 
-		//	// gradient should already have length 1,
-		//	// but we normalize it just in case
-		//	grad_x /= grad_length;
-		//	grad_y /= grad_length;
-		//	grad_z /= grad_length;
+			// gradient should already have length 1,
+			// but we normalize it just in case
+			grad_x /= grad_length;
+			grad_y /= grad_length;
+			grad_z /= grad_length;
 
-		//	// create differentiable SDF using linear approximation.
-		//	T sdf_approx_at_node = T(sdf_value) +
-		//		T(grad_x) * (pos(0) - T(world_pos[0])) +
-		//		T(grad_y) * (pos(1) - T(world_pos[1])) +
-		//		T(grad_z) * (pos(2) - T(world_pos[2]));
+			// create differentiable SDF using linear approximation.
+			T sdf_approx_at_node = T(sdf_value) +
+				T(grad_x) * (pos(0) - T(world_pos[0])) +
+				T(grad_y) * (pos(1) - T(world_pos[1])) +
+				T(grad_z) * (pos(2) - T(world_pos[2]));
 
-		//	// we don't just wsSample at c_0 and c_1, as this would be insensitive
-		//	// to "jumping" across very tight surface regions.
-		//	// Instead, we use the local gradient to approximate the SDF at c_0 and c_1,
-		//	// assuming a linear gradient field around the current position.
-		//	// (Also, TinyAD needs a notion of a gradient, which is why would need to
-		//	// compute it anyway.)
-		//	std::vector<T> sdf_approx_at_centers;
-		//	sdf_approx_at_centers.reserve(numPoints);
+			// we don't just wsSample at c_0 and c_1, as this would be insensitive
+			// to "jumping" across very tight surface regions.
+			// Instead, we use the local gradient to approximate the SDF at c_0 and c_1,
+			// assuming a linear gradient field around the current position.
+			// (Also, TinyAD needs a notion of a gradient, which is why would need to
+			// compute it anyway.)
+			std::vector<T> sdf_approx_at_centers;
+			sdf_approx_at_centers.reserve(numPoints);
 
-		//	for (size_t i = 0; i < numPoints; ++i) {
-		//		const auto& c = centers[i];
-		//		T sdf_approx = T(sdf_value) +
-		//			T(grad_x) * (c(0) - T(world_pos[0])) +
-		//			T(grad_y) * (c(1) - T(world_pos[1])) +
-		//			T(grad_z) * (c(2) - T(world_pos[2]));
-		//		sdf_approx_at_centers.push_back(sdf_approx);
-		//	}
+			for (size_t i = 0; i < numPoints; ++i) {
+				const auto& c = centers[i];
+				T sdf_approx = T(sdf_value) +
+					T(grad_x) * (c(0) - T(world_pos[0])) +
+					T(grad_y) * (c(1) - T(world_pos[1])) +
+					T(grad_z) * (c(2) - T(world_pos[2]));
+				sdf_approx_at_centers.push_back(sdf_approx);
+			}
 
-		//	// note that the gradient already has length 1
-		//	Eigen::Vector3<T> closest_surface_point = pos - // sdf is negative inside, so '-'
-		//		sdf_approx_at_node * Eigen::Vector3<T>(grad_x, grad_y, grad_z);
+			// note that the gradient already has length 1
+			Eigen::Vector3<T> closest_surface_point = pos - // sdf is negative inside, so '-'
+				sdf_approx_at_node * Eigen::Vector3<T>(grad_x, grad_y, grad_z);
 
-		//	Eigen::Vector3<T> v = pos - closest_surface_point;
-		//	if (sdf_approx_at_node > 0) {
-		//		v = -v; // flip direction if outside
-		//	}
+			Eigen::Vector3<T> v = pos - closest_surface_point;
+			if (sdf_approx_at_node > 0) {
+				v = -v; // flip direction if outside
+			}
 
-		//	auto backproject = [&](T sdf_at_c, Eigen::Vector3<T> u, T& l) {
-		//		T b = sdf_at_c - radius;
-		//		if (b <= 0) {
-		//			return;
-		//		}
+			auto backproject = [&](T sdf_at_c, Eigen::Vector3<T> u, T& l) {
+				T b = sdf_at_c - radius;
+				if (b <= 0) {
+					return;
+				}
 
-		//		T b_tilde = (b * u.norm() * v.norm()) / dot(u, v);
-		//		if (dot(u, v) <= 0) { // if non-positive, the angle is obtuse, so u is not pointing towards the surface
-		//			return;
-		//		}
+				T b_tilde = (b * u.norm() * v.norm()) / dot(u, v);
+				if (dot(u, v) <= 0) { // if non-positive, the angle is obtuse, so u is not pointing towards the surface
+					return;
+				}
 
-		//		l = max(
-		//			min(l - b_tilde, (T)maxRadius),
-		//			(T)0
-		//		);
+				l = max(
+					min(l - b_tilde, (T)maxRadius),
+					(T)0
+				);
 
-		//		// not covered yet: what happens if c is outside the "outer hull"?
-		//		// I added the max(..., (T)0) to prevent negative lengths, which at least prevents crashing for now..
-		//	};
+				// not covered yet: what happens if c is outside the "outer hull"?
+				// I added the max(..., (T)0) to prevent negative lengths, which at least prevents crashing for now..
+			};
 
-		//	for (size_t i = 0; i < numPoints; ++i) {
-		//		backproject(sdf_approx_at_centers[i], u_vectors[i], lengths[i]);
-		//	}
-		//};
+			for (size_t i = 0; i < numPoints; ++i) {
+				backproject(sdf_approx_at_centers[i], u_vectors[i], lengths[i]);
+			}
+		};
 
 		//add_volumetric_energy();
 
@@ -368,11 +377,13 @@ namespace modules {
 			options.volume.mesh_points
 		);
 
+		openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler> sampler(*options.volume.sdf);
+
 		if (options.volume.volumeType == scene_file::VolumeType::MESH && options.volume.convert_to_sdf && options.use_volumetric_energy) {
 			modules::backproject_centers_to_hull(
 				nodeMedialAxis,
 				nodes,
-				openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler>(*options.volume.sdf),
+				sampler,
 				radius,
 				maxRadius
 			);
@@ -383,7 +394,6 @@ namespace modules {
 		// 3.3 Add medial axis energy term AS WELL AS volumetric energy term when using SDF
 		// note that with our current setup we just have one uniform alpha
 		double totalMedialAxisEnergy = 0;
-		openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler> sampler(*options.volume.sdf);
 		func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element) -> TINYAD_SCALAR_TYPE(element) {
 			return calculate_medial_axis_sdf_energy(
 				element,
@@ -579,8 +589,13 @@ namespace modules {
 		double maxRadius = options.rmax;
 		double p = options.p;
 		double q = options.q;
-		double branchRadius = radius * branchRatio;
-		double alpha = 4 / (pow(branchRadius, 2));
+
+		double alpha = options.alpha; // -1: not initialized yet
+		if (alpha == -1) {
+			//double branchRadius = radius * branchRatio;
+			//alpha = 4 / (pow(branchRadius, 2));
+			alpha = (2.22 * 2.22) / (radius * radius);
+		}
 
 		std::cout << "alpha: " << alpha << ", p: " << p << ", q: " << q << std::endl;
 
@@ -680,6 +695,8 @@ namespace modules {
 
 		auto tangentEvalEnd = std::chrono::high_resolution_clock::now();
 
+		openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler> sampler(*options.volume.sdf);
+
 		// 3.2 Medial axis
 		auto nodeMedialAxis = modules::medial_axis_surface(
 			nodes,
@@ -691,7 +708,7 @@ namespace modules {
 			modules::backproject_centers_to_hull(
 				nodeMedialAxis,
 				nodes,
-				openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler>(*options.volume.sdf),
+				sampler,
 				radius,
 				maxRadius
 			);
@@ -701,7 +718,6 @@ namespace modules {
 
 		// 3.3 Add medial axis energy term AS WELL AS volumetric energy term when using SDF
 		// note that with our current setup we just have one uniform alpha
-		openvdb::tools::GridSampler<openvdb::FloatGrid, openvdb::tools::BoxSampler> sampler(*options.volume.sdf);
 		func.add_elements<1>(TinyAD::range(nodes.size()), [&](auto& element)->TINYAD_SCALAR_TYPE(element) {
 			return calculate_medial_axis_sdf_energy(
 				element,

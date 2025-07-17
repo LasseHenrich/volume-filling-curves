@@ -55,6 +55,7 @@ namespace modules {
             double h = igl::PI * radius / 20;
             double p = 2;
             double q = 2;
+            double alpha = -1;
             double step_size = 1.0f;
             bool use_backprojection = false;
             bool use_volumetric_energy = true;

@@ -205,7 +205,7 @@ void initialize_curve(Curve& curve, const scene_file::SceneObject& scene) {
     if (curve.nodes.size() == 0) {
         // just create a circle around the origin
 
-        float circleRadius = 1.f;
+        float circleRadius = scene.radius;
         for (int i = 0; i < 100; i++) {
 			float angle = (float)i / 100 * 2 * igl::PI;
             float x = circleRadius * cos(angle);
