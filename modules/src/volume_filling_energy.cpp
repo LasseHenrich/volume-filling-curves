@@ -594,7 +594,7 @@ namespace modules {
 		if (alpha == -1) {
 			//double branchRadius = radius * branchRatio;
 			//alpha = 4 / (pow(branchRadius, 2));
-			alpha = (2.22 * 2.22) / (radius * radius);
+			alpha = (2.25 * 2.25) / (radius * radius);
 		}
 
 		std::cout << "alpha: " << alpha << ", p: " << p << ", q: " << q << std::endl;

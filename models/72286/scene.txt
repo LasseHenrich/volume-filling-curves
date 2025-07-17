@@ -1,0 +1,15 @@
+volume mesh 72286_centered.stl true 0.3 5.0
+
+visualize_volume
+
+use_volumetric_energy true
+use_backprojection false
+use_length_energy true
+
+## Surface
+radius 1
+rmax 2
+h 0.3
+step_size 1.0
+filling_manifold ../testing/icosphere_small.stl
+filling_dimension 2
