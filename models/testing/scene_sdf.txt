@@ -1,0 +1,7 @@
+volume mesh icosphere.stl true 0.2 10.0
+radius 0.4
+rmax 1.2
+h 0.05
+visualize_volume
+use_backprojection
+filling_dimension 2

@@ -1,0 +1,22 @@
+volume mesh cube_small_offset.stl true 0.2 5.0
+
+visualize_volume
+
+use_volumetric_energy true
+use_backprojection false
+use_length_energy true
+
+## Surface
+#radius 0.15
+#rmax 0.3
+#h 0.06
+#step_size 1.0
+#filling_manifold icosphere_inner_smaller.stl
+#filling_dimension 2
+
+## Curve
+radius 0.15
+rmax 0.3
+h 0.05
+step_size 1
+filling_dimension 1
