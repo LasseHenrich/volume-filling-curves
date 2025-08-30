@@ -1,4 +1,4 @@
-volume mesh 68380.stl true 1.0 10.0
+volume mesh 68380_centered.stl true 1.0 10.0
 
 visualize_volume
 
@@ -7,8 +7,8 @@ use_backprojection false
 use_length_energy true
 
 ## Surface
-radius 6
-rmax 12
+radius 4.5
+rmax 9
 h 1.5
 step_size 1.0
 filling_manifold ../testing/icosphere.stl

@@ -7,9 +7,15 @@ use_backprojection false
 use_length_energy true
 
 ## Surface
+#radius 6
+#rmax 12
+#h 1.5
+#step_size 1.0
+#filling_manifold ../testing/icosphere.stl
+#filling_dimension 2
+
+## Curve
 radius 6
 rmax 12
 h 1.5
-step_size 1.0
-filling_manifold ../testing/icosphere.stl
-filling_dimension 2
+filling_dimension 1

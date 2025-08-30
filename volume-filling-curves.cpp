@@ -141,6 +141,12 @@ void doWork_surface() {
 		scene
 	);
 
+    auto pc = polyscope::registerPointCloud("nodes", restVertices);
+    pc->setPointRadius(0.0); // we just use the point cloud to visualize the descent direction
+    pc->addVectorQuantity("descent", descent)
+        ->setVectorColor(glm::vec3(1.0, 0.0, 0.0))
+        ->setEnabled(false);
+
 	// 2. evolve surface without self-intersections
 	modules::volume_path_evolution_surface(
 		currentSurface,
